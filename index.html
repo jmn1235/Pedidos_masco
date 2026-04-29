@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La Mascotera – Pedidos</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
+button{cursor:pointer;font-family:inherit;font-size:12px}
+input,select{font-family:inherit;font-size:12px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+
+/* HEADER */
+#hdr{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);border-bottom:1px solid #1e3a5f;
+  padding:10px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.logo-box{width:36px;height:36px;background:#3b82f6;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:18px;flex-shrink:0}
+.brand{font-size:16px;font-weight:700;color:#f1f5f9}
+.brand-sub{font-size:10px;color:#475569}
+
+/* TABS */
+.tabs{display:flex;gap:2px;margin-left:24px}
+.tab-btn{padding:7px 16px;border:none;border-radius:8px;background:transparent;color:#64748b;
+  font-weight:600;font-size:12px;transition:all .15s}
+.tab-btn:hover{background:#1e293b;color:#94a3b8}
+.tab-btn.active{background:#3b82f6;color:#fff}
+
+/* TAB CONTENT */
+.tab-content{display:none;flex-direction:column;flex:1;overflow:hidden}
+.tab-content.active{display:flex}
+
+/* TOOLBAR */
+.toolbar{background:#1e293b;border-bottom:1px solid #334155;padding:10px 16px;
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0}
+.btn{padding:6px 14px;border:1px solid #334155;border-radius:7px;background:#0f172a;color:#e2e8f0;
+  transition:all .15s;white-space:nowrap}
+.btn:hover{background:#1e293b;border-color:#475569}
+.btn-blue{background:#1d4ed8;border-color:#2563eb;color:#fff}
+.btn-blue:hover{background:#2563eb}
+.btn-green{background:#15803d;border-color:#16a34a;color:#fff}
+.btn-green:hover{background:#16a34a}
+.btn-red{background:#991b1b;border-color:#b91c1c;color:#fff}
+.btn-red:hover{background:#b91c1c}
+.btn-sm{padding:4px 10px;font-size:11px}
+.sep{width:1px;background:#334155;margin:0 4px;align-self:stretch}
+.toolbar-label{font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+input[type=text],input[type=number],select{background:#0f172a;border:1px solid #334155;border-radius:7px;
+  padding:5px 10px;color:#e2e8f0;outline:none;transition:border .2s}
+input[type=text]:focus,input[type=number]:focus,select:focus{border-color:#3b82f6}
+
+/* HISTORIAL TABLE */
+.hist-wrap{flex:1;overflow:auto;position:relative}
+.hist-table{border-collapse:collapse;min-width:600px}
+.hist-table th,.hist-table td{border:1px solid #1e293b;padding:5px 8px;white-space:nowrap}
+.hist-table thead th{background:#1a2540;color:#64748b;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;z-index:10}
+.hist-table thead th.frozen{z-index:20}
+.hist-table thead th.frozen2{z-index:20}
+.hist-table tbody tr:nth-child(even){background:#0a1525}
+.hist-table tbody tr:nth-child(odd){background:#0f172a}
+.hist-table tbody tr:hover{background:#162032!important}
+.frozen{position:sticky;left:0;background:inherit;z-index:5}
+.frozen2{position:sticky;left:80px;background:inherit;z-index:5}
+.frozen3{position:sticky;left:220px;background:inherit;z-index:5}
+.col-code{width:80px;min-width:80px;color:#64748b;font-family:monospace;font-size:11px}
+.col-nombre{width:140px;min-width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.col-marca{width:100px;min-width:100px;color:#94a3b8}
+.col-per{width:70px;min-width:70px;text-align:right}
+.col-stat{width:60px;min-width:60px;text-align:right;color:#6366f1;font-weight:600}
+.editable-cell{cursor:pointer}
+.editable-cell:hover{background:#1e3a5f!important}
+.period-col-hdr{text-align:center;vertical-align:top;padding:4px 4px!important}
+.period-label-input{background:transparent;border:none;border-bottom:1px solid #334155;color:#e2e8f0;
+  width:70px;text-align:center;font-size:10px;font-weight:700;outline:none}
+.del-per-btn{display:block;margin:2px auto 0;padding:1px 4px;font-size:9px;background:transparent;
+  border:1px solid #374151;border-radius:4px;color:#64748b}
+.del-per-btn:hover{background:#7f1d1d;border-color:#991b1b;color:#fca5a5}
+.num{text-align:right}
+.pos-val{color:#34d399;font-weight:600}
+.zero-val{color:#374151}
+
+/* PEDIDOS CONFIG */
+.ped-config{background:#1e293b;border-bottom:1px solid #334155;padding:10px 16px;
+  display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;flex-shrink:0}
+.cfg-group{display:flex;flex-direction:column;gap:3px}
+.cfg-lbl{font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.cfg-lbl small{font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:#475569}
+.cfg-num{width:76px;text-align:center}
+.cfg-sel{min-width:130px}
+
+/* PEDIDOS FILTERS */
+.ped-filters{background:#0f172a;border-bottom:1px solid #1e293b;padding:8px 16px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.filt-count{margin-left:auto;font-size:11px;color:#475569}
+
+/* STATUS BAR */
+.status-bar{background:#1e293b;border-top:1px solid #334155;padding:8px 16px;
+  display:flex;gap:20px;align-items:center;flex-shrink:0}
+.stat-item{display:flex;flex-direction:column}
+.stat-lbl{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+.stat-val{font-size:14px;font-weight:700}
+.stat-val.blue{color:#3b82f6}
+.kg-badge{padding:5px 14px;border-radius:7px;font-weight:700;font-size:12px;color:#fff;background:#1e293b}
+.kg-badge.ok{background:#16a34a}
+.kg-badge.warn{background:#dc2626}
+
+/* PEDIDOS TABLE */
+.ped-wrap{flex:1;overflow:auto}
+.ped-table{border-collapse:collapse;width:100%}
+.ped-table th,.ped-table td{border:1px solid #1a2540;padding:5px 7px;white-space:nowrap}
+.ped-table thead th{background:#1a2540;color:#64748b;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;z-index:5;white-space:pre-line}
+.ped-table tbody tr:nth-child(even){background:#0a1525}
+.ped-table tbody tr:nth-child(odd){background:#0f172a}
+.ped-table tbody tr.has-order{background:#0d1f30!important}
+.ped-table tbody tr:hover{background:#162032!important}
+.ped-frozen{position:sticky;left:0;background:inherit;z-index:4}
+.stock-inp{width:62px;background:#1e3a5f;border:1px solid #3b82f6;border-radius:5px;
+  padding:2px 5px;color:#93c5fd;text-align:center}
+.stock-inp:focus{border-color:#60a5fa;outline:none}
+.a-pedir-cell{text-align:center}
+.ap-badge{display:inline-block;min-width:34px;padding:2px 7px;border-radius:5px;
+  font-weight:700;font-size:12px;text-align:center}
+.ap-badge.pos{background:#1d4ed8;color:#fff}
+.ap-badge.zero{color:#374151}
+.prob-badge{display:inline-block;padding:2px 7px;border-radius:14px;font-size:11px;font-weight:700}
+.prob-badge.g{background:#dcfce7;color:#15803d}
+.prob-badge.a{background:#fef3c7;color:#b45309}
+.prob-badge.r{background:#fee2e2;color:#b91c1c}
+.muted{color:#374151}
+.kg-val{color:#a78bfa;font-weight:600}
+td.num{text-align:right}
+td.ctr{text-align:center}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;
+  align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;
+  min-width:360px;max-width:500px;width:90%}
+.modal h3{margin-bottom:16px;font-size:15px;color:#f1f5f9}
+.modal label{display:block;font-size:11px;color:#64748b;margin-bottom:4px;margin-top:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.modal input,.modal select{width:100%;padding:8px 10px}
+.modal-btns{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.toast{position:fixed;bottom:20px;right:20px;background:#1e293b;border:1px solid #334155;
+  border-radius:8px;padding:10px 18px;font-size:13px;z-index:200;transition:opacity .3s;
+  opacity:0;pointer-events:none;max-width:340px}
+.toast.show{opacity:1}
+.toast.ok{border-color:#16a34a;color:#34d399}
+.toast.err{border-color:#dc2626;color:#f87171}
+.toast.info{border-color:#3b82f6;color:#93c5fd}
+.empty-row{text-align:center;padding:40px;color:#475569}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div class="logo-box">🐾</div>
+  <div>
+    <div class="brand">La Mascotera</div>
+    <div class="brand-sub">Sistema de Pedidos a Proveedores</div>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" onclick="switchTab('hist-ocampo')">📊 Historial Ocampo</button>
+    <button class="tab-btn" onclick="switchTab('hist-tucuman')">📊 Historial Tucumán</button>
+    <button class="tab-btn" onclick="switchTab('pedidos')">📦 Pedidos</button>
+  </nav>
+</div>
+
+<!-- ═══ TAB: HISTORIAL OCAMPO ═══ -->
+<div id="tab-hist-ocampo" class="tab-content active">
+  <div class="toolbar">
+    <span class="toolbar-label">Sucursal Ocampo</span>
+    <div class="sep"></div>
+    <button class="btn btn-blue" onclick="showImportMesModal('ocampo')">⬆ Importar mes</button>
+    <button class="btn" onclick="addPeriodManual('ocampo')">+ Agregar período vacío</button>
+    <div class="sep"></div>
+    <button class="btn btn-green" onclick="exportarHistorial('ocampo')">⬇ Exportar historial Excel</button>
+    <div class="sep"></div>
+    <input type="text" id="hist-search-ocampo" placeholder="🔍 Buscar producto..." style="width:200px" oninput="renderHistTab('ocampo')">
+    <span class="toolbar-label" style="margin-left:auto" id="hist-count-ocampo"></span>
+  </div>
+  <div class="hist-wrap"><div id="hist-table-ocampo"></div></div>
+</div>
+
+<!-- ═══ TAB: HISTORIAL TUCUMÁN ═══ -->
+<div id="tab-hist-tucuman" class="tab-content">
+  <div class="toolbar">
+    <span class="toolbar-label">Sucursal Tucumán</span>
+    <div class="sep"></div>
+    <button class="btn btn-blue" onclick="showImportMesModal('tucuman')">⬆ Importar mes</button>
+    <button class="btn" onclick="addPeriodManual('tucuman')">+ Agregar período vacío</button>
+    <div class="sep"></div>
+    <button class="btn btn-green" onclick="exportarHistorial('tucuman')">⬇ Exportar historial Excel</button>
+    <div class="sep"></div>
+    <input type="text" id="hist-search-tucuman" placeholder="🔍 Buscar producto..." style="width:200px" oninput="renderHistTab('tucuman')">
+    <span class="toolbar-label" style="margin-left:auto" id="hist-count-tucuman"></span>
+  </div>
+  <div class="hist-wrap"><div id="hist-table-tucuman"></div></div>
+</div>
+
+<!-- ═══ TAB: PEDIDOS ═══ -->
+<div id="tab-pedidos" class="tab-content">
+  <!-- Config -->
+  <div class="ped-config">
+    <div class="cfg-group">
+      <div class="cfg-lbl">Sucursal</div>
+      <select class="cfg-sel" id="ped-suc" onchange="onSucChange()">
+        <option value="ocampo">Ocampo</option>
+        <option value="tucuman">Tucumán</option>
+        <option value="consolidado">Consolidado (ambas)</option>
+      </select>
+    </div>
+    <div class="cfg-group">
+      <div class="cfg-lbl">N Períodos <small>· para stock óptimo</small></div>
+      <input type="number" class="cfg-num" id="ped-nper" value="6" min="1" max="12" oninput="schedRender()">
+    </div>
+    <div class="cfg-group">
+      <div class="cfg-lbl">Días de Reposición</div>
+      <input type="number" class="cfg-num" id="ped-diasr" value="30" min="1" max="365" oninput="schedRender()">
+    </div>
+    <div class="cfg-group">
+      <div class="cfg-lbl">Kg Mínimo <small>· 0=sin mínimo</small></div>
+      <input type="number" class="cfg-num" id="ped-kgmin" value="0" min="0" oninput="schedRender()">
+    </div>
+    <div class="cfg-group">
+      <div class="cfg-lbl">Meses Vencimiento</div>
+      <input type="number" class="cfg-num" id="ped-mvenc" value="6" min="1" max="24" oninput="schedRender()">
+    </div>
+    <div class="sep"></div>
+    <!-- Stock buttons dinámicos -->
+    <div id="stock-btns" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end"></div>
+    <div class="sep"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="cfg-lbl">Exportar</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-green" onclick="exportarPedido()">⬇ Pedido Excel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="ped-filters">
+    <input type="text" id="ped-search" placeholder="🔍 Buscar producto..." style="width:260px" oninput="schedRender()">
+    <select id="ped-marca" onchange="schedRender()" style="min-width:130px">
+      <option value="">Todas las marcas</option>
+      <option value="7 VIDAS">7 VIDAS</option>
+<option value="AGILITY">AGILITY</option>
+<option value="AMI">AMI</option>
+<option value="ANLEZE">ANLEZE</option>
+<option value="ARGENPET">ARGENPET</option>
+<option value="BALANCED">BALANCED</option>
+<option value="BECHLAB">BECHLAB</option>
+<option value="BINKA">BINKA</option>
+<option value="BOEHRINGER">BOEHRINGER</option>
+<option value="CAN-CAT">CAN-CAT</option>
+<option value="COMPLETE">COMPLETE</option>
+<option value="EUKANUBA">EUKANUBA</option>
+<option value="EXCELLENT">EXCELLENT</option>
+<option value="FAWNA">FAWNA</option>
+<option value="HOLLYDAY">HOLLYDAY</option>
+<option value="JAGUA">JAGUA</option>
+<option value="JANVIER">JANVIER</option>
+<option value="JASPE">JASPE</option>
+<option value="KUALCOS">KUALCOS</option>
+<option value="LECHE Y MIEL">LECHE Y MIEL</option>
+<option value="LIWUE">LIWUE</option>
+<option value="LOGAN">LOGAN</option>
+<option value="LOKI HUESOS">LOKI HUESOS</option>
+<option value="MUNDO CUCHA">MUNDO CUCHA</option>
+<option value="MYSOL">MYSOL</option>
+<option value="NIC">NIC</option>
+<option value="NUEVA MARCA">NUEVA MARCA</option>
+<option value="NUEVO SOL">NUEVO SOL</option>
+<option value="OLD PRINCE">OLD PRINCE</option>
+<option value="OPTIMUM">OPTIMUM</option>
+<option value="ORIGEN">ORIGEN</option>
+<option value="OSSPRET">OSSPRET</option>
+<option value="PEDIGREE">PEDIGREE</option>
+<option value="PELLCAT">PELLCAT</option>
+<option value="PER-ROS">PER-ROS</option>
+<option value="PETS PLAST">PETS PLAST</option>
+<option value="PETS PLUS IMPORTADOS">PETS PLUS IMPORTADOS</option>
+<option value="PRO PLAN">PRO PLAN</option>
+<option value="RASH ON">RASH ON</option>
+<option value="RAST SRL">RAST SRL</option>
+<option value="ROYAL CANIN">ROYAL CANIN</option>
+<option value="SENDA">SENDA</option>
+<option value="SIEGER">SIEGER</option>
+<option value="SIN MARCA">SIN MARCA</option>
+<option value="TONIPETS">TONIPETS</option>
+<option value="VALE FOR PETS">VALE FOR PETS</option>
+<option value="WHISKAS">WHISKAS</option>
+<option value="ZOETIS">ZOETIS</option>
+    </select>
+    <select id="ped-rubro" onchange="schedRender()" style="min-width:150px">
+      <option value="">Todos los rubros</option>
+      <option value="ALIMENTOS GATOS">ALIMENTOS GATOS</option>
+<option value="ALIMENTOS HUMEDOS">ALIMENTOS HUMEDOS</option>
+<option value="ALIMENTOS PERROS">ALIMENTOS PERROS</option>
+<option value="CAMAS, CUCHAS Y COLCHONETAS">CAMAS, CUCHAS Y COLCHONETAS</option>
+<option value="CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS">CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS</option>
+<option value="CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS">CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS</option>
+<option value="COMEDEROS">COMEDEROS</option>
+<option value="CUIDADO DENTAL">CUIDADO DENTAL</option>
+<option value="EDUCADORES">EDUCADORES</option>
+<option value="ELEMENTOS DE PASEO">ELEMENTOS DE PASEO</option>
+<option value="JUGUETES GATOS">JUGUETES GATOS</option>
+<option value="JUGUETES PERROS">JUGUETES PERROS</option>
+<option value="MEDICAMENTOS">MEDICAMENTOS</option>
+<option value="OTROS ACCESORIOS">OTROS ACCESORIOS</option>
+<option value="PIEDRAS SANITARIAS">PIEDRAS SANITARIAS</option>
+<option value="PULGUICIDAS Y GARRAPATICIDAS">PULGUICIDAS Y GARRAPATICIDAS</option>
+<option value="RASCADORES">RASCADORES</option>
+<option value="ROPA">ROPA</option>
+<option value="SHAMPOOS Y ACONDICIONADORES">SHAMPOOS Y ACONDICIONADORES</option>
+<option value="SNACKS">SNACKS</option>
+<option value="TRANSPORTADORES">TRANSPORTADORES</option>
+<option value="VARIOS">VARIOS</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;color:#94a3b8;cursor:pointer">
+      <input type="checkbox" id="ped-solo-pedido" onchange="schedRender()" style="accent-color:#3b82f6">
+      Solo con pedido
+    </label>
+    <span class="filt-count" id="ped-fcount"></span>
+  </div>
+
+  <!-- Table -->
+  <div class="ped-wrap"><table class="ped-table">
+    <thead><tr>
+      <th class="ped-frozen" style="min-width:80px">Código</th>
+      <th style="min-width:220px">Producto</th>
+      <th style="min-width:100px">Marca</th>
+      <th style="min-width:110px">Rubro</th>
+      <th style="min-width:75px;text-align:center">Stock\nActual</th>
+      <th style="min-width:75px">Vendido\n(N per.)</th>
+      <th style="min-width:70px">V.Diaria</th>
+      <th style="min-width:70px">Stock\nÓptimo</th>
+      <th style="min-width:70px;text-align:center">A PEDIR</th>
+      <th style="min-width:65px">Kg/Un.</th>
+      <th style="min-width:75px">Total Kg</th>
+      <th style="min-width:70px;text-align:center">Prob.\nVenc.</th>
+    </tr></thead>
+    <tbody id="ped-tbody"></tbody>
+  </table></div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="stat-item"><div class="stat-lbl">Con pedido</div><div class="stat-val" id="sf-prods">0</div></div>
+    <div class="stat-item"><div class="stat-lbl">Unidades</div><div class="stat-val" id="sf-unid">0</div></div>
+    <div class="stat-item"><div class="stat-lbl">Total Kg</div><div class="stat-val blue" id="sf-kg">0.0 kg</div></div>
+    <div id="sf-min" style="margin-left:auto"></div>
+  </div>
+</div>
+
+<!-- MODAL: Importar mes historial -->
+<div class="modal-bg" id="modal-import">
+  <div class="modal">
+    <h3>⬆ Importar mes del historial</h3>
+    <label>Archivo Excel (.xlsx / .xls)</label>
+    <input type="file" id="imp-file" accept=".xlsx,.xls" style="padding:6px;width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0">
+    <label>Etiqueta del período (ej: "Abr 2026")</label>
+    <input type="text" id="imp-label" placeholder="Abr 2026">
+    <label>Columna de cantidad (nombre o número)</label>
+    <input type="text" id="imp-col" placeholder="Cantidad Total Vendida" value="Cantidad Total Vendida">
+    <small style="color:#475569;font-size:10px;display:block;margin-top:4px">
+      El archivo debe tener una columna "Código" o "Cod" y la columna de cantidad indicada.
+      Compatible con el formato "Consulta de Ventas Por Producto".
+    </small>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="doImportMes()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Importar stock -->
+<div class="modal-bg" id="modal-stock">
+  <div class="modal">
+    <h3 id="modal-stock-title">⬆ Importar Stock Actual</h3>
+    <label>Archivo Excel (.xlsx / .xls)</label>
+    <input type="file" id="stock-file" accept=".xlsx,.xls" style="padding:6px;width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0">
+    <small style="color:#475569;font-size:10px;display:block;margin-top:8px">
+      El archivo debe tener columnas "Código" y "Stock Actual" (o similares).
+      Podés exportar la planilla de stock y editarla para importarla.
+    </small>
+    <div class="modal-btns">
+      <button class="btn" onclick="document.getElementById('modal-stock').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-blue" onclick="doImportStock()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT FILE HIDDEN -->
+<input type="file" id="hidden-file" style="display:none" accept=".xlsx,.xls">
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATOS ─────────────────────────────────────────────────────────────────────
+const PRODS = [{"c":"900290","n":"7 VIDAS SALMON X 10 KG","m":"7 VIDAS","r":"ALIMENTOS GATOS","k":10.0},{"c":"00561","n":"AGILITY ADULTOS TALLA PEQUEÑA X 15 KG.","m":"AGILITY","r":"ALIMENTOS PERROS","k":15.0},{"c":"00568","n":"AGILITY CATS CONTROL DE PESO X 1,5 KG.","m":"AGILITY","r":"ALIMENTOS GATOS","k":1.5},{"c":"00563","n":"AGILITY DERMA CONTROL ADULTO X 15 KG.","m":"AGILITY","r":"ALIMENTOS PERROS","k":15.0},{"c":"00581","n":"AGILITY CATS HIGADO X 340 GR. EO","m":"AGILITY","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"01695","n":"RASCADOR TUBO","m":"AMI","r":"RASCADORES","k":null},{"c":"01339","n":"COLLAR ISABELINO Nª 6","m":"ANLEZE","r":"EDUCADORES","k":null},{"c":"00194","n":"PRETAL NYLON Nº 2","m":"ARGENPET","r":"ELEMENTOS DE PASEO","k":null},{"c":"00191","n":"CORREA NYLON Nº 2","m":"ARGENPET","r":"ELEMENTOS DE PASEO","k":null},{"c":"00190","n":"CORREA NYLON Nº 1","m":"ARGENPET","r":"ELEMENTOS DE PASEO","k":null},{"c":"00189","n":"COLLAR NYLON Nº 7","m":"ARGENPET","r":"ELEMENTOS DE PASEO","k":null},{"c":"132056","n":"BALANCED LATA CARNE PERRO ADULTO X 340GR","m":"BALANCED","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"132060","n":"BALANCED LATA CARNE PERRO SENIOR X 340GR","m":"BALANCED","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00224","n":"BALANCED CACH RP X7.5KG","m":"BALANCED","r":"ALIMENTOS PERROS","k":7.5},{"c":"990222","n":"BALANCED NR GATO ADULTO TRUCHA PATAGONICA X 7.5 KG","m":"BALANCED","r":"ALIMENTOS GATOS","k":7.5},{"c":"132067","n":"BALANCED LATA MERLUZA GATO CASTRADO X 85GR","m":"BALANCED","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00226","n":"BALANCED NR CERDO Y ARROZ X3KG","m":"BALANCED","r":"ALIMENTOS PERROS","k":3.0},{"c":"132064","n":"BALANCED LATA POLLO GATO ADULTO X 85GR","m":"BALANCED","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00225","n":"BALANCED NR CERDO Y ARROZ X15KG","m":"BALANCED","r":"ALIMENTOS PERROS","k":15.0},{"c":"900304XCOMP","n":"URSOMARINA 10KG X COMPRIMIDO","m":"BECHLAB","r":"MEDICAMENTOS","k":null},{"c":"595","n":"COLLAR BABS PERROS GRANDES","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"594","n":"COLLAR BABS GATO","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00593","n":"COLLAR BABS CACHORROS","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"596","n":"COLLAR BABS PERROS MEDIANOS","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00597","n":"ACA NO AEROSOL X 419 ML.","m":"BINKA","r":"EDUCADORES","k":null},{"c":"900311XUNIDAD","n":"RATICIDA ULTRA PLUS X UNIDAD","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"599","n":"BABS AEROSOL X 250 ML.","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01714","n":"BABS AEROSOL AMBIENTAL X 415 ML.","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"900312","n":"ULTRA TRON (D-METRINA LPU X 400CC)","m":"BINKA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01156","n":"FRONT LINE HASTA 10 KG","m":"BOEHRINGER","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01152","n":"FRONT LINE 10 A 20","m":"BOEHRINGER","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01155","n":"FRONT LINE GATO","m":"BOEHRINGER","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00121","n":"JUGUETE HUESO SOGA MINI","m":"CAN-CAT","r":"JUGUETES PERROS","k":null},{"c":"01484","n":"COMPLETE AD RP X7.5KG","m":"COMPLETE","r":"ALIMENTOS PERROS","k":7.5},{"c":"00787","n":"EUKANUBA CACH RM X15KG","m":"EUKANUBA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00801","n":"EUKANUBA SENIOR MEDIUM BREED 15KG","m":"EUKANUBA","r":"ALIMENTOS PERROS","k":null},{"c":"00413","n":"EXCELLENT GATO X3KG","m":"EXCELLENT","r":"ALIMENTOS GATOS","k":3.0},{"c":"00412","n":"EXCELLENT GATO X1KG","m":"EXCELLENT","r":"ALIMENTOS GATOS","k":1.0},{"c":"00505","n":"EXCELLENT ADULT CAT CON POLLO Y ARROZ X 7,5KG","m":"EXCELLENT","r":"ALIMENTOS GATOS","k":7.5},{"c":"900131","n":"FAWNA PERRO AD LIGTH X 15 KG","m":"FAWNA","r":"ALIMENTOS PERROS","k":15.0},{"c":"900138","n":"FAWNA CACH RM/G X 15KGS","m":"FAWNA","r":"ALIMENTOS PERROS","k":15.0},{"c":"900140","n":"FAWNA AD RP X 3KGS","m":"FAWNA","r":"ALIMENTOS PERROS","k":3.0},{"c":"900134","n":"FAWNA CACH RM/G X 3 KGS","m":"FAWNA","r":"ALIMENTOS PERROS","k":3.0},{"c":"900146","n":"FAWNA GATO STERILIZED X 3 KG","m":"FAWNA","r":"ALIMENTOS GATOS","k":3.0},{"c":"900132","n":"FAWNA PERRO SENIOR X 3 KG","m":"FAWNA","r":"ALIMENTOS PERROS","k":3.0},{"c":"900139","n":"FAWNA GATO KITTEN X 3KG","m":"FAWNA","r":"ALIMENTOS GATOS","k":3.0},{"c":"01219","n":"TOTAL FULL CG X15ML","m":"HOLLYDAY","r":"MEDICAMENTOS","k":null},{"c":"01116","n":"ACEDAN GOTAS 10ML","m":"HOLLYDAY","r":"MEDICAMENTOS","k":null},{"c":"01774X100GRS","n":"JAGUA GATO X 100GRS","m":"JAGUA","r":"ALIMENTOS GATOS","k":0.1},{"c":"01183","n":"OTOVIER","m":"JANVIER","r":"MEDICAMENTOS","k":null},{"c":"900916","n":"JASPE GATO X 1 KG","m":"JASPE","r":"ALIMENTOS GATOS","k":1.0},{"c":"900908","n":"JASPE ADULTO RM/G X 20 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":20.0},{"c":"900915","n":"JASPE PREMIUM URINARIO X 1 KG","m":"JASPE","r":"ALIMENTOS GATOS","k":1.0},{"c":"900910","n":"JASPE ADULTO RP X 20 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":20.0},{"c":"900919","n":"JASPE PREMIUM CRIADORES X 20 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":20.0},{"c":"900917","n":"JASPE ADULTO RP X 3 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":3.0},{"c":"900911","n":"JASPE PREMIUM URINARIO X 8 KG","m":"JASPE","r":"ALIMENTOS GATOS","k":8.0},{"c":"900913","n":"JASPE GATO X 10 KG","m":"JASPE","r":"ALIMENTOS GATOS","k":10.0},{"c":"900909","n":"JASPE ADULTO RP X 8 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":8.0},{"c":"900907","n":"JASPE ADULTO RM/G X 8 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":8.0},{"c":"900905","n":"JASPE CACHORRO RM/G X 15 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":15.0},{"c":"900918","n":"JASPE PREMIUM ADULTO RP X 8 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":8.0},{"c":"900920","n":"JASPE ADULTO RM/G X 3 KG","m":"JASPE","r":"ALIMENTOS PERROS","k":3.0},{"c":"00088XCOMPRIMIDO","n":"PREDNISOLONA 20MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00060XCOMPRIMIDO","n":"CEFALEXINA 500MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00063XCOMPRIMIDO","n":"DOXICICLINA 200MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00087XCOMPRIMIDO","n":"PREDNISOLONA 10MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00065XCOMPRIMIDO","n":"ENROFLOXACINA 200MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00066XCOMPRIMIDO","n":"ENROFLOXACINA 50MG XCOMPRIMIDO","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"083","n":"PIPETA PERFOS GATO HASTA 4KG","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"082","n":"PIPETA PERFOS GATO + DE 4KG","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00071","n":"KUALCODERM CREMA X20G","m":"KUALCOS","r":"MEDICAMENTOS","k":0.02},{"c":"00084XBLISTER","n":"POLADIN GERIATRICO XBLISTER","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00081","n":"PIPETA PERFOS 5 A 10","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00090","n":"SOFTAL-E COLIRIO X10ML","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00078","n":"PIPETA PERFOS 2 A 5","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00092","n":"TALCO PERFOS","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00067XBLISTER","n":"FENTEL MAX 10KG XBLISTER","m":"KUALCOS","r":"MEDICAMENTOS","k":10.0},{"c":"00086XBLISTER","n":"POLADIN MAX FORTE XBLISTER","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00089","n":"SOFTAL COLIRIO X10ML","m":"KUALCOS","r":"MEDICAMENTOS","k":null},{"c":"00079","n":"PIPETA PERFOS 20 A 40","m":"KUALCOS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01560","n":"BOZAL 8 TALLE 2","m":"LECHE Y MIEL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01830","n":"BOLSO TRANSPORTADOR CON REJILLA CHICO","m":"LECHE Y MIEL","r":"TRANSPORTADORES","k":null},{"c":"900902","n":"LIWUE PERRO AD X 20 KG","m":"LIWUE","r":"ALIMENTOS PERROS","k":20.0},{"c":"01615X100GRS","n":"LOGAN CACH X 100 GRS","m":"LOGAN","r":"ALIMENTOS PERROS","k":0.1},{"c":"01275","n":"HUESO 3/4","m":"LOKI HUESOS","r":"SNACKS","k":null},{"c":"01276","n":"HUESO 5/6","m":"LOKI HUESOS","r":"SNACKS","k":null},{"c":"01277","n":"HUESO 7/8","m":"LOKI HUESOS","r":"SNACKS","k":null},{"c":"900124","n":"RAMPA PERRO","m":"MUNDO CUCHA","r":"JUGUETES PERROS","k":null},{"c":"01246XUNIDAD","n":"COLLAR BLISTER DISEÑOS VARIOS XUNIDAD","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01379","n":"COLLAR SEMI-AHORQUE DOBLE 3.0 X 60CM","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01886","n":"ARNES CON MANIJA L","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"900039","n":"CORREA TRENZADA CON RESORTE","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01384","n":"COLLAR SEMI-AHORQUE TRIPLE 2.5 X 55CM","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01250","n":"COLLAR CON PAÑUELO Nº3","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01869","n":"ARNES CON MANIJA XL","m":"MYSOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"901009","n":"PIEDRAS PIPI CAT ULTRA CONTROL X 4 KG","m":"NIC","r":"PIEDRAS SANITARIAS","k":4.0},{"c":"901004","n":"PIEDRAS SANITARIAS THE BEST LAVANDA X 3.6 KG","m":"NIC","r":"PIEDRAS SANITARIAS","k":3.6},{"c":"901007","n":"PIEDRAS PIPI CAT BIANCO LAVANDA X 1.8 KG","m":"NIC","r":"PIEDRAS SANITARIAS","k":1.8},{"c":"901003","n":"PIEDRAS SANITARIAS THE BEST LAVANDA X 1.8 KG","m":"NIC","r":"PIEDRAS SANITARIAS","k":1.8},{"c":"901001","n":"PIEDRAS SANITARIAS THE BEST X 3.6 KG","m":"NIC","r":"PIEDRAS SANITARIAS","k":3.6},{"c":"900239","n":"NOBIVAC DHPPI X DOSIS SEXTUPLE","m":"NUEVA MARCA","r":"MEDICAMENTOS","k":null},{"c":"01229","n":"NOBIVAC TRICAT TRIO X DOSIS TRIPLE FELINA","m":"NUEVA MARCA","r":"MEDICAMENTOS","k":null},{"c":"01631XCOMP","n":"IVERTOR-C XCOMPRIMIDO","m":"NUEVA MARCA","r":"MEDICAMENTOS","k":null},{"c":"998803","n":"LOCION BEBE X 130 ML","m":"NUEVA MARCA","r":"MEDICAMENTOS","k":null},{"c":"998802","n":"LOCION MAXIMO X 130ML","m":"NUEVA MARCA","r":"MEDICAMENTOS","k":null},{"c":"01421","n":"QUITAPELOS RODILLO","m":"NUEVO SOL","r":"OTROS ACCESORIOS","k":null},{"c":"01422","n":"QUITAPELOS REPUESTO (X 2 UNIDADES)","m":"NUEVO SOL","r":"OTROS ACCESORIOS","k":null},{"c":"01240","n":"CARDINA CABO MADERA GRANDE","m":"NUEVO SOL","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"00135","n":"CAÑITA PARA GATO","m":"NUEVO SOL","r":"JUGUETES GATOS","k":null},{"c":"01360","n":"ALICATE CON LIMA Nª1","m":"NUEVO SOL","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"01268","n":"CONJUNTO PRETAL Y CORREA REGULABLE FLUOR Nº4","m":"NUEVO SOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01235","n":"CADENA GRUESA MANIJA REFORZADA CHICA","m":"NUEVO SOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01349","n":"BOZAL REJILLA PLASTICA Nª 4","m":"NUEVO SOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"01352","n":"BOZAL REJILLA PLASTICA Nª 7","m":"NUEVO SOL","r":"ELEMENTOS DE PASEO","k":null},{"c":"00376","n":"OLD PRINCE EQ CACH RM/G X3KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":3.0},{"c":"00096","n":"OLD PRINCE CORD Y ARROZ AD RP X3KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":3.0},{"c":"00364","n":"OLD PRINCE EQ AD RM/G X15KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":15.0},{"c":"900332","n":"OLD PRINCE CORD Y ARROZ AD LIGHT X 15KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":15.0},{"c":"900181","n":"OLD PRINCE PREMIUM GATO AD X 3 KG","m":"OLD PRINCE","r":"ALIMENTOS GATOS","k":3.0},{"c":"900329","n":"OLD PRINCE CORD Y ARROZ SENIOR X3KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":3.0},{"c":"900331","n":"OLD PRINCE CORD Y ARROZ AD LIGHT X3KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":3.0},{"c":"00400","n":"OLD PRINCE CORD Y ARROZ GATO X 3 KG","m":"OLD PRINCE","r":"ALIMENTOS GATOS","k":3.0},{"c":"900330","n":"OLD PRINCE CORD Y ARROZ SENIOR X 15KG","m":"OLD PRINCE","r":"ALIMENTOS PERROS","k":15.0},{"c":"00850","n":"SALSA OPTIMUM GATITO","m":"OPTIMUM","r":"ALIMENTOS HUMEDOS","k":null},{"c":"00393","n":"ORIGEN AD RM/G X20KG","m":"ORIGEN","r":"ALIMENTOS PERROS","k":20.0},{"c":"01292","n":"SHAMPOO OSSPRET AQUA","m":"OSSPRET","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"01187","n":"PIPETAS OSSPRET 11 A 20","m":"OSSPRET","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01291","n":"SHAMPOO OSSPRET AMITRAZ","m":"OSSPRET","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"00874","n":"SALSA PEDIGREE ADULTO CARNE X100G","m":"PEDIGREE","r":"ALIMENTOS HUMEDOS","k":0.1},{"c":"00875","n":"SALSA PEDIGREE RAZA PEQUEÑA CARNE X100G","m":"PEDIGREE","r":"ALIMENTOS HUMEDOS","k":0.1},{"c":"00889","n":"PEDIGREE DENTASTIX RAZAS MEDIANAS X3 UNIDADES","m":"PEDIGREE","r":"CUIDADO DENTAL","k":null},{"c":"00879","n":"LATA PEDIGREE CACHORRO CARNE X340G","m":"PEDIGREE","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00047","n":"PELLCAT X1.7KG PIEDRAS SANITARIAS","m":"PELLCAT","r":"PIEDRAS SANITARIAS","k":1.7},{"c":"01408","n":"MOISES TENDENCIA MEDIANO","m":"PER-ROS","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"00914","n":"BANDEJA SANITARIA CHICA","m":"PETS PLAST","r":"EDUCADORES","k":null},{"c":"00908","n":"COMEDERO DOBLE CUADRADO","m":"PETS PLAST","r":"COMEDEROS","k":null},{"c":"00905","n":"COMEDERO PLASTICO CHICO","m":"PETS PLAST","r":"COMEDEROS","k":null},{"c":"00940","n":"MORDILLO 8 DE GOMA","m":"PETS PLAST","r":"JUGUETES PERROS","k":null},{"c":"00917","n":"KIT SANITARIO CHICO","m":"PETS PLAST","r":"EDUCADORES","k":null},{"c":"4631030","n":"HUESO RASCA ENCIAS MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4670041","n":"CONJUNTO PRETAL + CORREA L P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4670040","n":"CONJUNTO PRETAL + CORREA M P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4622812","n":"COMEDERO DE ACERO N°4 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"463125","n":"PELOTA PORTA COMIDA CHICA P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"463103","n":"HUESO RASCA ENCIAS CHICO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"463780","n":"PELUCHE PATO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4670042","n":"CONJUNTO PRETAL + CORREA XL P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"463121","n":"GALLINA CHILLONA S P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4630710","n":"JUGUETE PELOTA PINCHUDA C/ CHIFLE MEDIANA P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"465002","n":"CUCHA MULLIDA ESPECIAL S P+","m":"PETS PLUS IMPORTADOS","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"4631250","n":"PELOTA PORTA COMIDA MEDIANA P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4621813","n":"COMEDERO DE ACERO N°5 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"462301","n":"COMEDERO PLEGABLE CHICO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"4622811","n":"COMEDERO DE ACERO N°3 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"467301","n":"CORREA DE SEGURIDAD P/ AUTO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"466052","n":"MANOPLA QUITAPELOS P+","m":"PETS PLUS IMPORTADOS","r":"OTROS ACCESORIOS","k":null},{"c":"4650020","n":"CUCHA MULLIDA ESPECIAL M P+","m":"PETS PLUS IMPORTADOS","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"4622810","n":"COMEDERO DE ACERO N°2 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"4620021","n":"COMEDERO PLASTICO GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"465903","n":"CUBRE ASIENTOS DOBLE P+","m":"PETS PLUS IMPORTADOS","r":"OTROS ACCESORIOS","k":null},{"c":"466057","n":"CEPILLO A VAPOR P+","m":"PETS PLUS IMPORTADOS","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"468505","n":"CEPILLO DENTAL DE SILICONA P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"463721","n":"PELUCHE PERRO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"463252","n":"PELOTA INTELIGENTE P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"467051","n":"CORREA CINTURA DEPORTIVA P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"462002","n":"COMEDERO PLASTICO CHICO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"463770","n":"PELUCHE MONO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4631210","n":"GALLINA CHILLONA M P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"466055","n":"CEPILLO DISPENSER DE SHAMPOO P+","m":"PETS PLUS IMPORTADOS","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"4679520","n":"COLLAR CORAZON S P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"461201","n":"PORTA BOLSITA HUESITO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4671141","n":"ARNES PERRO CON CORREA MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"467114","n":"ARNES PERRO CON CORREA EXTRA CHICO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4671131","n":"ARNES CON MANIJA PERRO EXTRA GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"467901","n":"COLLAR CON LUZ CHICO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"463257","n":"PELOTA 3 MODOS P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4630700","n":"PELOTA CON PINCHOS C/ LUZ GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"466101","n":"RODILLO SACAPELUSA P+","m":"PETS PLUS IMPORTADOS","r":"OTROS ACCESORIOS","k":null},{"c":"4679260","n":"COLLAR CASCABEL ESTAMPADO M P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"467926","n":"COLLAR CASCABEL ESTAMPADO S P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4671130","n":"ARNES CON MANIJA PERRO GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4680392","n":"DISFRAZ DINO XL P+","m":"PETS PLUS IMPORTADOS","r":"ROPA","k":null},{"c":"467004","n":"CONJUNTO PRETAL + CORREA S P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"463070","n":"PELOTA CON PINCHOS C/ LUZ CHICA P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"463706","n":"PELUCHE BURRO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"467113","n":"ARNES CON MANIJA PERRO MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"463796","n":"PELUCHE OREJON P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"462104","n":"COMEDERO COMELENTO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"464109","n":"MOCHILA TRANSPORTADORA 2BLE BOLSILLO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"468039","n":"DISFRAZ DINO S P+","m":"PETS PLUS IMPORTADOS","r":"ROPA","k":null},{"c":"462026","n":"COMEDERO Y BEBEDERO 2 EN 1 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"4650021","n":"CUCHA MULLIDA ESPECIAL L P+","m":"PETS PLUS IMPORTADOS","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"463071","n":"JUGUETE PELOTA PINCHUDA C/ CHIFLE CHICA P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"462602","n":"COMEDERO AUTOMATICO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"463602","n":"PESCADO LOCO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"461301","n":"BOLSITA REPUESTO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4679521","n":"COLLAR CORAZON M P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"466133","n":"PELOTA SACAPELUSA X4 UNIDADES P/ LAVARROPAS P+","m":"PETS PLUS IMPORTADOS","r":"OTROS ACCESORIOS","k":null},{"c":"4620020","n":"COMEDERO PLASTICO MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"461005","n":"PALA RECOLECTORA PLEGABLE P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4637210","n":"PELUCHE PERRO OREJON P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"4680390","n":"DISFRAZ DINO M P+","m":"PETS PLUS IMPORTADOS","r":"ROPA","k":null},{"c":"4672040","n":"CORREA EXTENSIBLE 5MTS P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4640010","n":"CANIL TRANSPORTADOR P+ M","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"464001","n":"CANIL TRANSPORTADOR P+ S","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4671140","n":"ARNES PERRO CON CORREA CHICO P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"464102","n":"MOCHILA TRANSPORTADORA CAPSULA P+","m":"PETS PLUS IMPORTADOS","r":"TRANSPORTADORES","k":null},{"c":"4669020","n":"LIMPIA PATITA GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"OTROS ACCESORIOS","k":null},{"c":"463291","n":"DISCO MAGICO P+","m":"PETS PLUS IMPORTADOS","r":"JUGUETES PERROS","k":null},{"c":"467204","n":"CORREA EXTENSIBLE 3MTS P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4623010","n":"COMEDERO PLEGABLE MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"462281","n":"COMEDERO DE ACERO N°1 P+","m":"PETS PLUS IMPORTADOS","r":"COMEDEROS","k":null},{"c":"4640011","n":"CANIL TRANSPORTADOR P+ L","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"4663230","n":"CEPILLO DOBLE GRANDE P+","m":"PETS PLUS IMPORTADOS","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"468501","n":"CEPILLO DENTAL P+","m":"PETS PLUS IMPORTADOS","r":"ELEMENTOS DE PASEO","k":null},{"c":"466201","n":"ALICATE CON LIMA MEDIANO P+","m":"PETS PLUS IMPORTADOS","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"00420","n":"PRO PLAN CACH RP X7.5KG","m":"PRO PLAN","r":"ALIMENTOS PERROS","k":7.5},{"c":"00416","n":"PRO PLAN AD RP X3KG","m":"PRO PLAN","r":"ALIMENTOS PERROS","k":3.0},{"c":"900230","n":"JUGUETE HUESO PINCHUDO CON CHIFLE","m":"RASH ON","r":"JUGUETES PERROS","k":null},{"c":"01331","n":"COMIDA CHIFLE ECONOMICA","m":"RAST SRL","r":"JUGUETES PERROS","k":null},{"c":"00139","n":"CADENA CORTA RESORTE MANIJA REFORZADA","m":"RAST SRL","r":"ELEMENTOS DE PASEO","k":null},{"c":"00670","n":"ROYAL MINI PUPPY X1KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":1.0},{"c":"00753","n":"ROYAL HYPOALLERGENIC SMALL DOG X2KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":2.0},{"c":"00672","n":"ROYAL MINI PUPPY X7.5KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":7.5},{"c":"00751","n":"ROYAL HYPOALLERGENIC X2KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":2.0},{"c":"00673","n":"ROYAL MINI PUPPY X15KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":15.0},{"c":"00768","n":"ROYAL PERRO HEPATIC X1,5KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":1.5},{"c":"00639","n":"ROYAL GATOS WEIGHT CONTROL X1,5KG","m":"ROYAL CANIN","r":"ALIMENTOS GATOS","k":1.5},{"c":"00695","n":"ROYAL GIANT PUPPY X15KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":15.0},{"c":"00610","n":"ROYAL KITTEN X1,5KG","m":"ROYAL CANIN","r":"ALIMENTOS GATOS","k":1.5},{"c":"00705","n":"ROYAL YORKSHIRE TERRIER ADULTO X3KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":3.0},{"c":"00764","n":"ROYAL PERRO RENAL X10KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":10.0},{"c":"00757","n":"ROYAL GASTROINTESTINAL DOG X10KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":10.0},{"c":"00752","n":"ROYAL HYPOALLERGENIC X10KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":10.0},{"c":"00683","n":"ROYAL STARTER MEDIUM X3KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":3.0},{"c":"00772","n":"ROYAL PERRO DIABETIC X2KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":2.0},{"c":"00769","n":"ROYAL PERRO HEPATIC X10KG","m":"ROYAL CANIN","r":"ALIMENTOS PERROS","k":10.0},{"c":"77700001","n":"SENDA AD X20KG","m":"SENDA","r":"ALIMENTOS PERROS","k":20.0},{"c":"77700001X100GR","n":"SENDA AD X100GRS","m":"SENDA","r":"ALIMENTOS PERROS","k":0.1},{"c":"01500","n":"SIEGER REDUCE CALORIE X12KG","m":"SIEGER","r":"ALIMENTOS PERROS","k":12.0},{"c":"00530","n":"SIEGER REDUCE CALORIE X3KG.","m":"SIEGER","r":"ALIMENTOS PERROS","k":3.0},{"c":"01791","n":"KATZE ADULT URINARY X 100GR. EO","m":"SIEGER","r":"ALIMENTOS GATOS","k":0.1},{"c":"900259","n":"SIEGER KATZE ADULT HIGH QUALITY PROT. X 10 KG.","m":"SIEGER","r":"ALIMENTOS GATOS","k":10.0},{"c":"01204XCOMPRIMIDO","n":"PREVICOX (ANALGESICO) 227GRS XCOMPRIMIDO","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00215","n":"BALANCED AD RM X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00523","n":"SIEGER AD MINI X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00748","n":"LATA ROYAL RENAL DOG","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":null},{"c":"00570","n":"AGILITY GATO URINARIO X1.5KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.5},{"c":"00529","n":"SIEGER CRIADORES X 20 KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"1125","n":"BRAVECTO 4,5 A 10KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01124","n":"BRAVECTO 20 A 40KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00371","n":"OLD PRINCE CORD Y ARROZ RM/G X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01205XCOMPRIMIDO","n":"PREVICOX (ANALGESICO) 57GRS XCOMPRIMIDO","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00671","n":"ROYAL MINI PUPPY X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01212","n":"SIMPARICA 5 A 10KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01614","n":"LOGAN AD X 20 KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00675","n":"ROYAL MINI ADULT X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01122","n":"BRAVECTO 10 A 20KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00521","n":"SIEGER CACHORROS RM/G X3KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00367","n":"OLD PRINCE EQ AD RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01340XCOMPRIMIDO","n":"TRIPLEX XCOMPRIMIDO (ALBENDAZOL)","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00559","n":"AGILITY PERROS ADULTOS X20KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":20.0},{"c":"01211","n":"SIMPARICA 20 A 40KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00126XUNIDAD","n":"PAÑOS CANCAT 60X40 XUNIDAD","m":"SIN MARCA","r":"EDUCADORES","k":null},{"c":"00674","n":"ROYAL MINI ADULT X1KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.0},{"c":"00583","n":"AGILITY CATS MERLUZA X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":0.34},{"c":"01136XBLISTER","n":"CONTAL 60 XBLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00095","n":"OLD PRINCE EQ AD RM/G X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00715","n":"ROYAL BULLDOG FRANCES ADULTO X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01209","n":"SIMPARICA 10 A 20KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00525","n":"SIEGER ADULTOS RM/G X3KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00557","n":"AGILITY PERROS ADULTOS X3KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00519","n":"SIEGER CACH MINI X3KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00579","n":"AGILITY CATS CARNE X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00876","n":"SALSA PEDIGREE RAZA PEQUEÑA POLLO X100G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.1},{"c":"00878","n":"SALSA PEDIGREE ADULTO POLLO X100G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.1},{"c":"900908X100GRS","n":"JASPE ADULTO RM/G X 100GRS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":0.1},{"c":"00585","n":"AGILITY CATS POLLO X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00566","n":"AGILITY GATOS ADULTOS X1.5KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.5},{"c":"00372","n":"OLD PRINCE CORD Y ARROZ RM/G X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"132054","n":"BALANCED LATA CARNE PERRO ADULTO X 85GR","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00217","n":"BALANCED AD RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01704","n":"PIEDRAS SANITARIAS NIC X4 KG","m":"SIN MARCA","r":"PIEDRAS SANITARIAS","k":4.0},{"c":"01288","n":"SHAMPOO OSSPRET 2 EN 1","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"00223","n":"BALANCED CACH RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00522","n":"SIEGER CACHORROS RM/G X15KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00231","n":"BALANCED GATO CONTROL DE PESO/CAST X2KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":2.0},{"c":"00893","n":"SALSA WHISKAS ADULTO CARNE X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"1703","n":"PIEDRAS SANITARIAS NIC X2KG","m":"SIN MARCA","r":"PIEDRAS SANITARIAS","k":2.0},{"c":"00556","n":"AGILITY PERROS CACHORROS X20KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":20.0},{"c":"900145","n":"FAWNA AD RM/G X 15KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01496","n":"SIEGER AD MINI X12KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":12.0},{"c":"00542","n":"SIEGER KATZE KITTEN INMUNO PROTECT X 1 KG.","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.0},{"c":"00366","n":"OLD PRINCE EQ AD RP X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01780","n":"BALANCED NR CORDERO Y ARROZ X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01445","n":"SALSA WHISKAS ADULTO PESCADO X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"01210","n":"SIMPARICA 2,5 A 5KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00232","n":"BALANCED GATO CONTROL PESO/CAST X7.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00655","n":"ROYAL GATO URINARY S/O HIGH DILUTION X1,5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"00783","n":"EUKANUBA CACH RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00229","n":"BALANCED GATO AD X2KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":2.0},{"c":"00564","n":"AGILITY CATS KITTTEN X 1,5 KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":1.5},{"c":"00395","n":"OLD PRINCE CORD Y ARROZ CACH X 15 KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00750","n":"LATA ROYAL RECOVERY","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":null},{"c":"01302","n":"SHAMPOO OSSPRET TRADICIONAL","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"1126","n":"BRAVECTO 40 A 56KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01756","n":"SALSA PEDIGREE ADULTO 7 CARNE X100G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.1},{"c":"00575","n":"AGILITY DOG ADULTO X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":0.34},{"c":"00792","n":"EUKANUBA AD RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01274","n":"HUESO 12/13","m":"SIN MARCA","r":"SNACKS","k":null},{"c":"00587","n":"AGILITY CATS SARDINA X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00588","n":"AGILITY DOG POLLO X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"00218","n":"BALANCED AD RP X7.5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"00392","n":"OLD PRINCE EQ GATITO X 3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"00567","n":"AGILITY GATOS ADULTOS X 10KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":10.0},{"c":"00571","n":"AGILITY GATO URINARIO X10KG.","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":10.0},{"c":"00049","n":"BALANCED AD RP X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00692","n":"ROYAL MAXI ADULT X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"1705","n":"PIEDRAS SANITARIAS NIC X20 KG","m":"SIN MARCA","r":"PIEDRAS SANITARIAS","k":20.0},{"c":"1140","n":"CURABICHERA BACTROVET PLATA","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00676","n":"ROYAL MINI ADULT X7.5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"688","n":"ROYAL MEDIUM ADULT X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01769","n":"OLD PRINCE PREMIUM ADULTO X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00385","n":"OLD PRINCE EQ GATO URINARY CARE X 3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"00756","n":"ROYAL GASTROINTESTINAL DOG X2KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":2.0},{"c":"00373","n":"OLD PRINCE EQ AD RP X7,5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"01444","n":"RABIA MONODOSIS PROVIDEAN X DOSIS ANTIRABICA","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"1123","n":"BRAVECTO 2 A 4,5KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00780","n":"CLUB PERFORMANCE GATO AD X1.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"00369","n":"OLD PRINCE EQ CACH RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00402","n":"OLD PRINCE EQ GATO ESTERILIZADO X7,5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"900324","n":"OLD PRINCE CORD Y ARROZ AD RP X 7.5 KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"00691","n":"ROYAL MAXI PUPPY X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00368","n":"OLD PRINCE EQ CACH RM/G X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00186","n":"COLLAR NYLON Nº 4","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00577","n":"AGILITY CATS KITTEN X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.34},{"c":"900240","n":"OLD PRINCE CORD Y ARROZ GATO ESTERILIZADO X 3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"00550","n":"SIEGER KATZE URINARY TRACT X 1 KG.","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.0},{"c":"01431","n":"VARIOS","m":"SIN MARCA","r":"VARIOS","k":null},{"c":"00894","n":"SALSA WHISKAS ADULTO POLLO X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00873","n":"SALSA PEDIGREE CACHORRO CARNE X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00187","n":"COLLAR NYLON Nº 5","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00776","n":"CLUB PERFORMANCE AD X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00686","n":"ROYAL MEDIUM PUPPY X 15 KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00184","n":"COLLAR NYLON Nº 2","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00394","n":"OLD PRINCE CORD Y ARROZ AD RP X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00374","n":"OLD PRINCE EQ AD RM/G X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00127XUNIDAD","n":"PAÑOS CANCAT 60X60 XUNIDAD","m":"SIN MARCA","r":"EDUCADORES","k":null},{"c":"132050","n":"BALANCED LATA CARNE CACHORRO X 85GR","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"4631211","n":"GALLINA CHILLONA L P+","m":"SIN MARCA","r":"JUGUETES PERROS","k":null},{"c":"00192","n":"CORREA NYLON Nº 3","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00240","n":"BALANCED SENIOR RP X7.5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"00887","n":"PEDIGREE DENTASTIX RAZAS PEQUEÑAS X7UNIDAD","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"00712","n":"ROYAL SCHNAUZER MINIATURE ADULTO X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01153","n":"FRONT LINE 20 A 40","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"900148","n":"FAWNA GATO STERILIZED X 7.5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00185","n":"COLLAR NYLON Nº 3","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"990150","n":"AGILITY ADULTOS TALLA PEQUEÑA X 1,5 KG.","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"00216","n":"BALANCED AD RM X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00798","n":"EUKANUBA AD RG X15KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00660","n":"ROYAL GATO HEPATIC X1,5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"01297","n":"SHAMPOO OSSPRET MEDICADO","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"00656","n":"ROYAL GATO URINARIO S/O X 7,5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"900243","n":"KIT SANITARIO JUMBO","m":"SIN MARCA","r":"EDUCADORES","k":null},{"c":"00763","n":"ROYAL PERRO RENAL X1.5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.5},{"c":"00569","n":"AGILITY CATS CONTROL DE PESO X 10 KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":10.0},{"c":"01188","n":"PIPETAS OSSPRET 2 A 10","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01244","n":"CARDINA PLASTICO MEDIANA","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"00391","n":"OLD PRINCE EQ GATO X 3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"00685","n":"ROYAL MEDIUM PUPPY X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00731","n":"ROYAL MINI WEIGHT CARE X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00680","n":"ROYAL MINI ADULT 8+ X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00554","n":"AGILITY PERROS CACHORROS X 3 KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":3.0},{"c":"00886","n":"PEDIGREE DENTASTIX RAZAS PEQUEÑAS X3 UNIDADES","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"00526","n":"SIEGER ADULTOS RM/G X15KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00219","n":"BALANCED CACH RG X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00188","n":"COLLAR NYLON Nº 6","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00892","n":"SALSA WHISKAS GATITOS CARNE X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"01498","n":"SIEGER CACH MINI X12KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":12.0},{"c":"900183","n":"OLD PRINCE PREMIUM GATITO X 7.5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00237","n":"BALANCED PERRO CONTROL PESO X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"00890","n":"PEDIGREE DENTASTIX RAZAS MEDIANAS X7UNIDAD","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"00765","n":"ROYAL MOBILITY SUPPORT X2KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":2.0},{"c":"00771","n":"ROYAL PERRO URINARY X10KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":10.0},{"c":"00197","n":"PRETAL NYLON Nº 5","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00640","n":"ROYAL GATOS WEIGHT CONTROL X3KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"01786","n":"PEDIGREE DENTASTIX RAZA GRANDE X3 UNIDADES","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"00891","n":"SALSA WHISKAS ADULTO SARDINA X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"00794","n":"EUKANUBA AD RP X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"900156XBLISTER","n":"PIMODEN 10MG X BLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"01190","n":"PIPETAS OSSPRET 40 O MAS","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01192","n":"PIPETAS OSSPRET GATOS 4KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00230","n":"BALANCED GATO AD X7.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00227","n":"BALANCED GATITO X2KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":2.0},{"c":"00403","n":"OLD PRINCE EQ GATO ESTERILIZADO X3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"00714","n":"ROYAL BULLDOG FRANCES PUPPY X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01147","n":"ECTHOL X70ML","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01361","n":"ALICATE CON LIMA Nª2","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"00774","n":"CLUB PERFORMANCE CACH X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"687","n":"ROYAL MEDIUM ADULT X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01220","n":"TOTAL FULL LC HASTA 60KG CAJA","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00196","n":"PRETAL NYLON Nº 4","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"900143","n":"FAWNA AD RM/G X 3KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00790","n":"EUKANUBA CACH RG X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01185","n":"OTOVIER NF","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"100035","n":"CONJUNTO COLLAR Y CORREA NYLON T2","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01283","n":"MEDALLAS PETS","m":"SIN MARCA","r":"OTROS ACCESORIOS","k":null},{"c":"00896","n":"SALSA WHISKAS ADULTO PAVO X85G","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"01399","n":"COLCH. IMPERMEABLE MULLIDA 75X75CM","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"00214","n":"BALANCED AD RG X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"900053","n":"AGILITY AD SALMON X 10 KGS","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":10.0},{"c":"900256","n":"SIEGER KATZE KITTEN INMUNO PROTECT X 10 KG.","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":10.0},{"c":"01241","n":"CARDINA CABO MADERA MEDIANA","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"00910","n":"CAZUELA HUELLA","m":"SIN MARCA","r":"COMEDEROS","k":null},{"c":"00183","n":"COLLAR NYLON Nº 1","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01181XBLISTER","n":"ODONTOBIOTIC XBLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00234","n":"BALANCED GATO CONTROL PH X7.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00616","n":"ROYAL FIT 32 X1.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"900142","n":"FAWNA AD RP X 7,5KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"900232","n":"ARNES CON MANIJA XXL","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01221XBLISTER","n":"UROVIER XBLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"01358","n":"ALICATE COMUN Nª1","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"01018","n":"FANTASIA SIN MANGA Nº4","m":"SIN MARCA","r":"ROPA","k":null},{"c":"01774","n":"JAGUA GATO X 7.5 KGS","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00888","n":"PEDIGREE DENTASTIX RAZAS MEDIANAS X1UNIDAD","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"01754","n":"MOISES TELA T1","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"00681","n":"ROYAL MINI AGEING 12+ X1KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.0},{"c":"01243","n":"CARDINA PLASTICO GRANDE","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"00909","n":"COMEDERO COME LENTO","m":"SIN MARCA","r":"COMEDEROS","k":null},{"c":"00072","n":"KUALCOVIT B JARABE X100CC","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"01853","n":"BOLSA BOCADITO GOLOCAN X100GRS (JAMON QUESO Y ESPINACA)","m":"SIN MARCA","r":"SNACKS","k":0.1},{"c":"00709","n":"ROYAL CANICHE ADULTO X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00755","n":"ROYAL GASTROINTESTINAL JR. DOG X2KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":2.0},{"c":"01150","n":"FELINE FULLSPOT HASTA 2KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"900110","n":"ALFOMBRA DE LAMER","m":"SIN MARCA","r":"COMEDEROS","k":null},{"c":"00162","n":"COLLAR CUERO BLONDI Nº0","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"100021XBLISTER","n":"DAVITAN FCO X BLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00384","n":"OLD PRINCE EQ GATO URINARY CARE X 7,5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00380","n":"OLD PRINCE EQ GATO X 7,5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00784","n":"EUKANUBA CACH RP X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01146","n":"ECTHOL X120ML","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01189","n":"PIPETAS OSSPRET 21 A 40","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"00669","n":"ROYAL STARTER MINI X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"01252","n":"COLLAR BROCHE","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01238","n":"CARDINA CABO MADERA CHICA","m":"SIN MARCA","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"01447","n":"BRAVECTO GATO 2.8 A 6.25KG","m":"SIN MARCA","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null},{"c":"01740","n":"SIEGER DERMAPROTECT - PIEL SENSIBLE X12KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":12.0},{"c":"00537","n":"SIEGER DERMAPROTECT - PIEL SENSIBLE X3KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00558","n":"AGILITY PERROS CACHORROS X15KG.","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"900777","n":"AGILITY CATS URINARY X 340 GR. EO","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":0.34},{"c":"00565","n":"AGILITY CATS KITTEN X 10 KG.","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":10.0},{"c":"00048","n":"PELLCAT X3.8KG PIEDRAS SANITARIAS","m":"SIN MARCA","r":"PIEDRAS SANITARIAS","k":3.8},{"c":"00398","n":"OLD PRINCE CERDO Y LEG AD RM/G X 3 KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00379","n":"OLD PRINCE EQ AD CONTROL DE PESO X 15 KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"900318","n":"OLD PRINCE CORD Y ARROZ GATO ESTERILIZADO X 7.5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00397","n":"OLD PRINCE CERDO Y LEG AD RM/G 15 KGS","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":null},{"c":"01409","n":"MOISES TENDENCIA GRANDE","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01867","n":"MOCHILA CANGURO L","m":"SIN MARCA","r":"TRANSPORTADORES","k":null},{"c":"00912","n":"MANOPLA PLASTICA QUITAPELOS","m":"SIN MARCA","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"01429XBLISTER","n":"KUALCOHEPAT 10KG XBLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"01784","n":"PEDIGREE DENTASTIX RAZA GRANDE X7UNIDADES","m":"SIN MARCA","r":"CUIDADO DENTAL","k":null},{"c":"900219","n":"JUMPER DE GOMA","m":"SIN MARCA","r":"JUGUETES PERROS","k":null},{"c":"900231","n":"JUGUETE INTERACTIVO CON PLUMA","m":"SIN MARCA","r":"JUGUETES GATOS","k":null},{"c":"01013","n":"FANTASIA SIN MANGA Nº 10","m":"SIN MARCA","r":"ROPA","k":null},{"c":"00923","n":"HUESO DE GOMA GRANDE","m":"SIN MARCA","r":"JUGUETES PERROS","k":null},{"c":"100020","n":"GERIOOX X 30 COMPRIMIDOS","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"01273","n":"GOLOSINA GRISINES CUERO","m":"SIN MARCA","r":"SNACKS","k":null},{"c":"01435","n":"PERFUME OSSPRET X130CC","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"00199","n":"PRETAL NYLON Nº 9","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00195","n":"PRETAL NYLON Nº 3","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01043","n":"POLAR COMUN Nº8","m":"SIN MARCA","r":"ROPA","k":null},{"c":"01342","n":"FORMULA MAC DONALD X200GRS","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":0.2},{"c":"900149","n":"FAWNA GATO URINARIO X 3 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":3.0},{"c":"900144","n":"FAWNA GATO AD X 7.5 KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00411","n":"EXCELLENT GATITO X1KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.0},{"c":"00803","n":"EUKANUBA SENIOR LARGE BREED 15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":null},{"c":"00506","n":"EXCELLENT ADULT CAT CON POLLO Y ARROZ X 15KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":15.0},{"c":"00658","n":"ROYAL GATO RENAL X2KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":2.0},{"c":"00716","n":"ROYAL BULLDOG FRANCES ADULTO X7,5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":7.5},{"c":"01694","n":"RASCADOR PARIS","m":"SIN MARCA","r":"RASCADORES","k":null},{"c":"01207","n":"RELAY C CAJA X 10","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00419","n":"PRO PLAN CACH RP X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"900119","n":"COMEDERO NORDICO SIMPLE 20 CM","m":"SIN MARCA","r":"COMEDEROS","k":null},{"c":"00960","n":"CUCHA MEDIANA ECO","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01270","n":"CORREA EXTENSIBLE 3MTS","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00164","n":"COLLAR CUERO BLONDI Nº2","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00168","n":"COLLAR CUERO BLONDI Nº6","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"100036","n":"CONJUNTO COLLAR Y CORREA NYLON T3","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00253","n":"COMPLETE CACH RM/G X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"900363XBLISTER","n":"PYO DERM PLUS 125 X BLISTER","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"00679","n":"ROYAL MINI ADULT 8+ X1KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.0},{"c":"00778","n":"CLUB PERFORMANCE CAT KITTEN X1,5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":1.5},{"c":"01382","n":"COLLAR SEMI-AHORQUE TRIPLE 3.0 X 60CM","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00696","n":"ROYAL GIANT JUNIOR X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"00770","n":"ROYAL PERRO URINARY X1,5KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":1.5},{"c":"00957","n":"CANIL GIPSY Nº1 - 36X36X25","m":"SIN MARCA","r":"TRANSPORTADORES","k":null},{"c":"00781","n":"CLUB PERFORMANCE GATO AD X7.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"00777","n":"CLUB PERFORMANCE WEIGHT CONTROL X15KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":15.0},{"c":"01395","n":"COLCH. IMPERMEABLE MULLIDA 100X65CM","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01396","n":"COLCH. IMPERMEABLE MULLIDA 120X120CM","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01397","n":"COLCH. IMPERMEABLE MULLIDA 120X80CM","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01366","n":"COLCH. SOFT LISA MEDIANA 85X65CM","m":"SIN MARCA","r":"CAMAS, CUCHAS Y COLCHONETAS","k":null},{"c":"01364","n":"CEPILLO DOBLE GRANDE","m":"SIN MARCA","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"01322","n":"CARTEL CUIDADO CON PERRO GRANDE","m":"SIN MARCA","r":"OTROS ACCESORIOS","k":null},{"c":"01242","n":"CARDINA PLASTICO CHICA","m":"SIN MARCA","r":"CEPILLOS, GUANTES, CARDINAS, CORTA UÑAS","k":null},{"c":"00682","n":"ROYAL MINI AGEING 12+ X3KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":3.0},{"c":"00220","n":"BALANCED CACH RM X20KG","m":"SIN MARCA","r":"ALIMENTOS PERROS","k":20.0},{"c":"01346","n":"BOZAL REJILLA PLASTICA Nª 1","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"00104","n":"BOLSITA REPUESTO","m":"SIN MARCA","r":"ELEMENTOS DE PASEO","k":null},{"c":"01359","n":"ALICATE COMUN Nª2","m":"SIN MARCA","r":"CEPILLOS, GUANTES,CARDINAS, CORTA UÑAS","k":null},{"c":"00228","n":"BALANCED GATITO X7.5KG","m":"SIN MARCA","r":"ALIMENTOS GATOS","k":7.5},{"c":"01294","n":"SHAMPOO OSSPRET BRONCE","m":"SIN MARCA","r":"SHAMPOOS Y ACONDICIONADORES","k":null},{"c":"01232","n":"ARTRIN X 30 COMP","m":"SIN MARCA","r":"MEDICAMENTOS","k":null},{"c":"900052","n":"AGILITY AD SALMON X 1.5 KGS","m":"SIN MARCA","r":"ALIMENTOS HUMEDOS","k":1.5},{"c":"01686","n":"GLOTONI L","m":"TONIPETS","r":"JUGUETES PERROS","k":null},{"c":"01685","n":"GLOTONI XL","m":"TONIPETS","r":"JUGUETES PERROS","k":null},{"c":"01012","n":"FANTASIA SIN MANGA Nº 1","m":"VALE FOR PETS","r":"ROPA","k":null},{"c":"00895","n":"SALSA WHISKAS ADULTO SALMON X85G","m":"WHISKAS","r":"ALIMENTOS HUMEDOS","k":0.085},{"c":"01706","n":"SIMPARICA 40 A 60KG","m":"ZOETIS","r":"PULGUICIDAS Y GARRAPATICIDAS","k":null}];
+const OCAMPO_HIST_INIT = [{"label":"Oct 2025","data":{"00561":1,"01695":2,"00194":4,"00190":2,"132056":2,"00224":2,"990222":2,"132067":1,"00226":1,"00225":1,"900304XCOMP":20,"595":2,"594":5,"596":1,"900312":1,"01156":2,"01152":3,"01155":2,"01484":1,"00801":1,"00413":1,"00412":1,"900131":2,"900138":3,"900140":2,"900134":1,"900139":1,"01219":1,"01116":1,"01774X100GRS":18,"01183":1,"900908":2,"900911":1,"900909":1,"900907":1,"00088XCOMPRIMIDO":14,"00060XCOMPRIMIDO":28,"00087XCOMPRIMIDO":14,"00065XCOMPRIMIDO":15,"00066XCOMPRIMIDO":3,"00071":2,"00084XBLISTER":1,"00090":1,"00067XBLISTER":1,"01560":1,"01830":1,"01615X100GRS":20,"01275":24,"01276":4,"01246XUNIDAD":1,"900039":1,"01384":1,"01869":1,"901009":8,"901004":2,"901007":1,"900239":6,"01229":1,"01421":1,"01422":1,"01240":1,"01360":1,"01268":1,"01349":1,"00376":4,"00096":3,"00364":4,"00400":1,"00850":4,"00393":6,"01292":1,"01187":3,"00875":1,"00889":3,"00047":2,"01408":1,"00914":1,"00908":1,"00905":1,"00917":1,"4631030":1,"4670041":1,"4670040":2,"4622812":3,"463125":1,"463103":1,"463780":1,"4670042":2,"463121":1,"4630710":1,"4631250":1,"4621813":4,"467301":2,"4620021":1,"465903":2,"466057":2,"468505":1,"463721":2,"467051":1,"462002":2,"463770":2,"4631210":1,"466055":1,"4679520":1,"463257":2,"466101":1,"467926":1,"4671130":1,"467004":2,"463796":1,"464109":1,"4650021":1,"463602":1,"4640010":1,"4671140":1,"4669020":1,"4640011":1,"468501":1,"00670":7,"00753":4,"00672":4,"00751":2,"00673":2,"00768":3,"00695":2,"00610":1,"00683":1,"00772":1,"00769":1,"77700001":9,"77700001X100GR":20,"00530":1,"900259":1,"01204XCOMPRIMIDO":6,"00215":11,"00523":7,"00748":19,"00570":5,"00529":7,"1125":4,"01124":7,"00371":8,"01205XCOMPRIMIDO":1,"00671":4,"01212":7,"01614":5,"00675":4,"01122":3,"00521":7,"00367":2,"01340XCOMPRIMIDO":4,"00559":3,"01211":4,"00674":2,"01136XBLISTER":1,"00095":2,"00715":1,"01209":4,"00525":3,"00557":3,"00519":4,"00876":5,"00566":3,"00372":2,"132054":5,"00217":2,"01704":1,"01288":1,"00223":1,"00522":2,"00231":3,"1703":2,"00556":3,"01496":2,"00542":1,"00366":3,"01780":1,"00232":1,"00655":1,"00783":2,"00229":1,"00564":1,"00395":3,"01302":2,"1126":2,"01274":2,"00392":2,"00567":1,"00571":1,"00049":2,"00676":1,"688":3,"01769":1,"00385":2,"00756":1,"00373":1,"00369":1,"900324":1,"00691":2,"00368":1,"00550":1,"00873":2,"00187":1,"00776":1,"00686":1,"00184":1,"00394":1,"00374":1,"00185":1,"00216":1,"00798":2,"00660":1,"01297":1,"00391":1,"00685":1,"00731":1,"00680":1,"00554":1,"00219":1,"00188":1,"900183":1,"00890":2,"00765":1,"00197":1,"01192":1,"00774":1,"687":1,"01220":1,"00196":1,"900053":1,"01241":1,"00910":1,"00183":1,"00234":1,"00616":1,"01189":1,"01238":1,"01686":1,"01685":1,"01012":1,"00895":1,"01706":2}},{"label":"Nov 2025","data":{"900290":1,"00568":1,"00563":1,"00581":1,"01339":1,"00191":3,"00189":1,"132056":4,"132060":5,"132064":1,"595":3,"594":1,"00593":2,"01156":2,"01152":2,"00121":1,"00787":1,"00505":1,"900131":4,"900138":1,"900140":1,"900134":1,"900146":1,"900132":1,"01219":1,"01116":1,"01774X100GRS":43,"01183":1,"900916":1,"900908":3,"900910":2,"900919":1,"900913":2,"900909":1,"900907":1,"900905":1,"00088XCOMPRIMIDO":20,"00063XCOMPRIMIDO":10,"00087XCOMPRIMIDO":2,"00065XCOMPRIMIDO":2,"083":4,"082":6,"00071":1,"00084XBLISTER":1,"00081":2,"00092":1,"01275":6,"01276":4,"01277":1,"01246XUNIDAD":1,"01379":2,"01886":2,"01250":1,"901009":7,"901004":6,"901007":1,"900239":6,"01229":2,"01421":2,"01422":1,"00135":2,"01235":1,"01352":1,"00376":2,"00096":4,"00364":5,"900332":4,"900181":2,"900329":1,"900330":1,"00393":8,"01292":2,"01291":1,"00874":3,"00875":1,"01408":1,"00914":1,"00908":1,"00940":1,"4631030":4,"4670041":4,"4670040":1,"4622812":4,"463125":1,"463103":1,"463780":2,"4670042":2,"463121":1,"4630710":1,"465002":3,"4631250":2,"462301":2,"4622811":3,"467301":2,"466052":2,"4650020":3,"4622810":1,"466057":3,"468505":1,"463721":1,"462002":1,"463770":2,"4631210":1,"466055":1,"4679520":2,"461201":2,"4671141":2,"463257":1,"4630700":1,"4679260":1,"4680392":2,"463070":1,"463796":2,"468039":1,"462026":1,"463602":1,"461005":1,"4637210":1,"4680390":1,"4672040":1,"464001":1,"467204":1,"00420":2,"01331":1,"00139":1,"00670":4,"00753":3,"00672":2,"00751":2,"00673":2,"00768":1,"00639":3,"00610":1,"00705":1,"00764":1,"00757":1,"00752":1,"77700001":9,"01500":2,"01791":1,"01204XCOMPRIMIDO":6,"00215":6,"00523":12,"00748":4,"00570":5,"00529":8,"1125":3,"01124":3,"00371":7,"01205XCOMPRIMIDO":6,"00671":5,"01212":8,"01614":5,"00675":6,"01122":3,"00521":5,"00367":5,"01340XCOMPRIMIDO":4,"00559":3,"01211":1,"00674":2,"00583":1,"01136XBLISTER":5,"00715":5,"01209":1,"00525":3,"00557":2,"00519":3,"00579":5,"00876":1,"00878":6,"00566":1,"00372":3,"00217":2,"01704":2,"01288":3,"00223":3,"00522":3,"00231":2,"1703":1,"00556":3,"900145":1,"01496":2,"00542":3,"00366":2,"01780":1,"01445":2,"01210":2,"00232":2,"00655":3,"00783":3,"00229":1,"00564":2,"00395":1,"01302":3,"1126":1,"00792":2,"00587":3,"00588":3,"00218":2,"00392":1,"00567":2,"00571":3,"00049":2,"00676":1,"01769":3,"00385":2,"00756":2,"00373":4,"01444":1,"1123":1,"00780":2,"00369":1,"00402":2,"900324":2,"00691":1,"00368":2,"00186":3,"01431":1,"00894":2,"00187":1,"00686":1,"00184":2,"00394":2,"00374":2,"00887":1,"00712":1,"01153":1,"990150":1,"00216":1,"00798":1,"00660":2,"00656":1,"900243":1,"00763":1,"00569":1,"01188":1,"01244":2,"00391":1,"00731":1,"00680":1,"00554":2,"00892":1,"00237":1,"00765":1,"00771":2,"00197":1,"01190":1,"00230":1,"00227":1,"00403":1,"00714":1,"01220":1,"00196":1,"00214":1,"900256":1,"900142":1,"900232":2,"00784":1,"01447":1,"01706":1}},{"label":"Dic 2025","data":{"00561":2,"00568":1,"01695":1,"00191":1,"00189":1,"132056":2,"00224":1,"990222":1,"132067":1,"595":5,"594":2,"00593":1,"00597":4,"01156":2,"01152":1,"00413":1,"900131":1,"01219":1,"900916":7,"900908":5,"900915":2,"900910":4,"900919":1,"900917":2,"900911":1,"900913":1,"900909":1,"900907":1,"00088XCOMPRIMIDO":82,"00060XCOMPRIMIDO":40,"00063XCOMPRIMIDO":13,"00087XCOMPRIMIDO":31,"00065XCOMPRIMIDO":10,"00066XCOMPRIMIDO":4,"083":6,"082":4,"00071":3,"00084XBLISTER":4,"00081":1,"00090":1,"00078":2,"00092":1,"00086XBLISTER":2,"00089":1,"00079":1,"01560":1,"900902":1,"01277":3,"900124":1,"01246XUNIDAD":2,"901009":8,"901004":2,"901007":4,"900239":9,"01229":1,"01631XCOMP":2,"00376":2,"00096":2,"00364":2,"900332":2,"900181":1,"900329":2,"900331":1,"00393":5,"01292":1,"01187":1,"01291":1,"00874":3,"00875":2,"00879":1,"00914":1,"4631030":7,"4670041":2,"4670040":4,"4622812":2,"463125":1,"463103":1,"463780":2,"4670042":2,"463121":4,"4630710":1,"465002":2,"4631250":4,"462301":1,"4622811":2,"467301":1,"466052":2,"4650020":2,"4622810":1,"4620021":2,"465903":1,"463721":2,"463252":2,"462002":2,"463770":2,"4631210":2,"466055":1,"4679520":1,"461201":1,"467114":3,"4671131":2,"467901":3,"463257":1,"4679260":1,"4671130":1,"467004":1,"463070":2,"463706":1,"4650021":1,"4679521":2,"4620020":2,"464001":1,"4663230":1,"900230":1,"00139":1,"00670":3,"00753":2,"00672":1,"00673":1,"00695":1,"77700001":5,"01204XCOMPRIMIDO":13,"00215":9,"00523":15,"00748":10,"00570":6,"00529":10,"1125":6,"01124":6,"00371":5,"00671":8,"01212":5,"01614":6,"00675":3,"01122":6,"00521":3,"00367":4,"01340XCOMPRIMIDO":4,"00559":6,"01211":12,"00674":5,"00583":6,"01136XBLISTER":6,"00095":4,"00715":5,"01209":6,"00525":3,"00557":6,"00519":2,"00579":4,"00876":3,"00878":2,"00585":5,"00566":5,"00372":2,"00217":4,"01704":2,"01288":3,"00223":3,"00522":3,"00231":3,"00893":8,"1703":6,"00556":2,"900145":3,"01496":3,"00366":2,"01780":3,"01445":5,"01210":1,"00232":1,"00655":3,"00783":3,"00229":2,"00564":1,"00395":2,"00750":6,"01302":4,"1126":5,"00792":3,"01274":5,"00587":2,"00588":2,"00218":2,"00392":1,"00567":2,"00571":1,"00692":1,"1705":1,"1140":3,"00676":4,"688":1,"01769":2,"00385":3,"00756":2,"00373":2,"01444":4,"1123":5,"00780":2,"00369":3,"00402":1,"900324":2,"00691":2,"00368":2,"00186":2,"00577":1,"900240":2,"00550":1,"01431":1,"00894":3,"00187":2,"00776":1,"00686":2,"00184":2,"00394":2,"00374":2,"4631211":1,"00240":2,"00887":1,"00712":2,"01153":1,"900148":2,"00185":2,"990150":1,"00216":2,"00798":2,"00660":1,"01297":2,"00656":1,"900243":3,"00763":2,"00569":2,"01188":4,"00391":2,"00685":3,"00731":1,"00554":1,"00526":1,"00219":1,"00188":1,"00892":4,"01498":4,"900183":1,"00237":1,"00890":2,"00771":1,"01190":1,"01192":2,"01147":1,"01361":2,"00774":1,"687":1,"900143":1,"100035":3,"00214":2,"00910":2,"00183":2,"01181XBLISTER":1,"00234":1,"900142":1,"900232":1,"01018":2,"01243":1,"00072":2,"00755":2,"900110":1,"100021XBLISTER":2,"00384":1,"00380":1,"01146":1,"00669":1,"01252":1,"00558":1,"01409":1,"900231":1,"900149":1,"00658":1,"01694":1,"00164":1,"900363XBLISTER":1,"00781":1,"01397":1,"01364":1,"01242":1,"00682":1,"01294":1,"01706":5}},{"label":"Ene 2026","data":{"00194":1,"00190":1,"900304XCOMP":10,"595":3,"00593":2,"900311XUNIDAD":2,"599":1,"01714":1,"01156":1,"01155":1,"00787":1,"01183":1,"900916":3,"900908":4,"900915":3,"900910":5,"900919":1,"900917":4,"900911":3,"900913":1,"900907":1,"900918":1,"00088XCOMPRIMIDO":20,"00063XCOMPRIMIDO":20,"00087XCOMPRIMIDO":9,"00065XCOMPRIMIDO":10,"00066XCOMPRIMIDO":20,"00090":1,"00078":2,"00092":1,"00067XBLISTER":1,"900902":2,"01246XUNIDAD":1,"901009":14,"901004":2,"901007":2,"901003":6,"901001":1,"900239":4,"01229":2,"01422":1,"01240":1,"00376":2,"00393":2,"01292":2,"00874":1,"00905":1,"4631030":5,"4670041":4,"4670040":2,"4622812":4,"463125":4,"463103":3,"463780":2,"4670042":2,"463121":1,"4630710":2,"465002":2,"4621813":2,"462301":4,"4622811":3,"467301":3,"466052":1,"4622810":3,"4620021":1,"465903":1,"466057":2,"468505":4,"463252":2,"467051":3,"4631210":1,"466055":1,"4671141":1,"4671131":2,"467901":1,"4630700":1,"466101":1,"4679260":1,"467926":1,"4671130":1,"467004":1,"467113":3,"462104":2,"468039":1,"462026":1,"463071":1,"461301":1,"461005":1,"4637210":1,"4672040":1,"4640010":1,"4671140":1,"00670":5,"00672":1,"00751":1,"00673":2,"00768":1,"00639":1,"00695":1,"77700001":7,"01791":1,"01204XCOMPRIMIDO":25,"00215":15,"00523":8,"00748":10,"00570":17,"00529":9,"1125":6,"01124":9,"00371":6,"01205XCOMPRIMIDO":8,"00671":9,"01212":4,"01614":6,"00675":6,"01122":6,"00521":7,"00367":5,"01340XCOMPRIMIDO":5,"00559":6,"01211":4,"00674":6,"00583":2,"01136XBLISTER":4,"00095":6,"00715":5,"01209":5,"00525":6,"00557":2,"00519":4,"00579":2,"00876":12,"00878":13,"900908X100GRS":20,"00585":5,"00566":2,"00372":4,"132054":5,"00217":4,"01704":6,"00223":1,"00522":3,"00231":4,"00893":1,"1703":3,"00556":2,"900145":3,"01496":2,"00542":4,"00366":4,"01780":2,"01445":2,"01210":4,"00232":5,"00655":2,"00783":1,"00229":2,"00564":3,"00395":2,"00750":3,"01302":1,"1126":2,"01756":9,"00575":1,"00792":2,"01274":1,"00587":1,"00588":1,"00218":2,"00392":1,"00567":3,"00571":5,"00049":1,"00692":4,"1705":4,"1140":2,"00676":1,"688":1,"01769":3,"00385":1,"00756":1,"01444":2,"1123":2,"00780":3,"00369":2,"00402":1,"900324":2,"00691":1,"00368":2,"00577":4,"900240":4,"00550":1,"01431":2,"00894":2,"00873":2,"00187":2,"00776":1,"00184":1,"00394":1,"4631211":1,"00192":2,"00240":3,"00887":3,"00712":1,"01153":1,"00185":3,"00798":1,"00660":1,"00656":2,"900243":2,"00569":3,"01244":2,"00391":2,"00685":1,"00731":1,"00680":1,"00554":1,"00886":1,"00526":2,"00219":1,"00188":1,"900183":2,"00237":2,"00765":2,"00197":1,"01786":1,"00891":2,"00794":2,"900156XBLISTER":2,"01190":2,"00227":1,"01361":2,"00774":2,"687":1,"01220":1,"00196":2,"900143":1,"00790":2,"01185":2,"01283":1,"00896":1,"01399":1,"900053":1,"900256":1,"01241":1,"01181XBLISTER":1,"01774":2,"01754":1,"01243":1,"00709":1,"00380":1,"01146":1,"01238":1,"00537":1,"00379":1,"00397":1,"01867":1,"00912":1,"01429XBLISTER":1,"01013":1,"00195":1,"900144":1,"00411":1,"00803":1,"00506":1,"01207":1,"900119":1,"00770":1,"00957":1,"00777":1,"01346":1,"00228":1}},{"label":"Feb 2026","data":{"00224":1,"595":2,"594":1,"00593":1,"596":2,"01152":1,"01155":2,"900131":1,"900916":4,"900908":3,"900915":4,"900910":2,"900919":3,"900917":1,"900911":2,"900913":3,"900909":2,"900905":2,"900920":1,"00088XCOMPRIMIDO":30,"00060XCOMPRIMIDO":16,"00063XCOMPRIMIDO":20,"00087XCOMPRIMIDO":6,"00065XCOMPRIMIDO":10,"00066XCOMPRIMIDO":20,"083":3,"082":1,"00090":1,"00092":1,"00089":1,"900902":1,"901009":15,"901004":1,"900239":2,"998803":1,"998802":1,"01360":1,"00376":4,"00096":4,"00364":1,"900181":1,"4631030":5,"4670041":4,"4670040":2,"4622812":1,"463125":4,"463103":4,"463780":1,"4670042":1,"463121":4,"4630710":2,"465002":3,"4621813":3,"462301":2,"4622811":1,"467301":1,"466052":1,"4622810":2,"4620021":1,"465903":2,"463721":2,"463252":1,"467051":1,"4631210":1,"466055":1,"461201":1,"4671141":1,"467114":1,"4630700":1,"466101":2,"467926":1,"4680392":1,"462104":1,"464109":1,"468039":1,"461301":1,"466133":1,"464102":1,"463291":1,"4623010":1,"01331":1,"00670":1,"00753":2,"00751":1,"00639":1,"00695":1,"00705":1,"77700001":2,"01204XCOMPRIMIDO":12,"00215":9,"00523":12,"00748":5,"00570":9,"00529":5,"1125":12,"01124":5,"00371":4,"01205XCOMPRIMIDO":7,"00671":6,"01212":7,"01614":9,"00675":7,"01122":5,"00521":3,"00367":4,"01340XCOMPRIMIDO":4,"00559":4,"01211":4,"00674":6,"00583":6,"01136XBLISTER":5,"00095":5,"00715":2,"01209":2,"00525":3,"00557":4,"00519":4,"00579":6,"00585":6,"00566":4,"00372":6,"132054":6,"00217":1,"01704":4,"01288":4,"00223":6,"00522":1,"00231":4,"00556":3,"900145":4,"01496":4,"00542":2,"00366":3,"01780":4,"01445":1,"01210":2,"00232":3,"00655":3,"00783":2,"00229":2,"00564":4,"00395":2,"00750":1,"1126":2,"01756":2,"00575":5,"00792":2,"00587":5,"00588":5,"00218":1,"00392":3,"00567":2,"00049":2,"00692":2,"1705":3,"1140":3,"00676":1,"688":1,"01769":1,"00385":1,"00756":3,"00373":3,"01444":2,"00369":1,"00402":2,"900324":2,"00691":2,"00368":1,"00186":1,"900240":1,"00550":2,"01431":1,"00894":1,"00873":2,"00187":1,"00776":2,"00686":2,"00394":1,"00374":2,"4631211":2,"00192":2,"00240":2,"00887":2,"00712":1,"01153":2,"900148":1,"00185":1,"990150":3,"00216":3,"00660":1,"01297":1,"00656":2,"00763":2,"01244":1,"00685":1,"00731":2,"00680":1,"00554":1,"00526":1,"00219":1,"00188":1,"00890":1,"00771":2,"00640":3,"01786":2,"00891":1,"00794":2,"900156XBLISTER":2,"01192":1,"00230":3,"00227":2,"00714":1,"01147":2,"900143":1,"01185":1,"01283":2,"00896":1,"01399":2,"01241":1,"00616":1,"01358":2,"00909":1,"00709":1,"01150":2,"00162":2,"00384":1,"00784":1,"01189":1,"00669":1,"01252":1,"01447":1,"01740":1,"00565":1,"900318":1,"00199":1,"01342":1,"00716":1,"01270":1,"00168":1,"100036":1,"00679":1,"00778":1,"01396":1,"01322":1,"00220":1,"01359":1,"01706":2}},{"label":"Mar 2026","data":{"596":2,"01156":1,"900131":1,"900916":6,"900908":4,"900915":8,"900910":4,"900919":6,"900917":2,"900911":2,"900913":2,"900909":1,"900918":1,"00088XCOMPRIMIDO":35,"00060XCOMPRIMIDO":27,"00063XCOMPRIMIDO":20,"00087XCOMPRIMIDO":2,"00065XCOMPRIMIDO":16,"083":1,"082":1,"00081":2,"00090":1,"00067XBLISTER":1,"900902":2,"01275":6,"901009":5,"901004":1,"901003":1,"00376":1,"00096":1,"900332":1,"900181":2,"00393":11,"01292":1,"01187":1,"4670041":2,"4670040":5,"4622812":2,"463125":2,"463103":2,"463780":3,"4670042":2,"4630710":3,"4631250":3,"4621813":1,"466052":2,"4650020":3,"4620021":2,"465903":1,"468505":1,"463252":1,"467051":1,"462002":1,"466055":1,"4679520":1,"461201":1,"4671141":1,"4630700":1,"4679260":1,"467926":1,"4671130":1,"4680392":1,"463070":1,"463706":2,"464109":1,"462026":1,"4650021":1,"463071":1,"462602":2,"466133":1,"4680390":1,"462281":1,"466201":1,"00416":1,"00670":3,"00753":2,"00751":1,"00610":1,"77700001":7,"77700001X100GR":1,"00530":1,"01204XCOMPRIMIDO":7,"00215":19,"00523":12,"00748":10,"00570":14,"00529":13,"1125":6,"01124":7,"00371":7,"01205XCOMPRIMIDO":12,"00671":2,"01212":2,"01614":1,"00675":6,"01122":7,"00521":5,"00367":9,"01340XCOMPRIMIDO":8,"00559":5,"01211":2,"00126XUNIDAD":26,"00674":5,"00583":10,"01136XBLISTER":4,"00095":7,"00715":6,"01209":5,"00525":4,"00557":5,"00519":5,"00579":4,"00585":4,"00566":5,"00372":2,"132054":2,"00217":4,"01704":1,"01288":5,"00223":2,"00522":4,"00893":6,"1703":3,"00556":2,"900145":3,"01496":1,"00542":4,"01780":2,"01445":3,"01210":4,"00232":1,"00655":1,"00783":2,"00229":4,"00564":1,"00395":2,"00750":2,"01302":2,"00575":5,"00792":2,"01274":3,"00218":4,"00392":3,"00567":1,"00571":1,"00049":4,"00692":3,"1705":2,"1140":2,"00676":2,"688":4,"00385":1,"00756":1,"1123":1,"00780":2,"00369":1,"00402":3,"00691":1,"00368":1,"00186":3,"00577":3,"900240":1,"00550":3,"01431":3,"00873":2,"00187":1,"00776":3,"00686":2,"00184":2,"00394":1,"00374":1,"00127XUNIDAD":7,"132050":7,"4631211":3,"00192":3,"00712":2,"01153":2,"900148":4,"990150":2,"00798":1,"00660":1,"01297":2,"00763":1,"01188":1,"01244":1,"00680":2,"00886":4,"00526":1,"00219":1,"00188":1,"01498":1,"900183":1,"00237":1,"00765":1,"00197":2,"00640":1,"01786":1,"00891":1,"00403":3,"00714":2,"01147":1,"687":1,"01220":1,"00790":1,"00896":1,"900053":1,"900256":1,"01181XBLISTER":1,"00234":1,"00616":1,"900142":1,"01221XBLISTER":2,"00888":2,"01754":1,"00681":2,"00909":1,"01853":2,"900110":1,"900777":1,"00048":1,"00398":1,"01784":1,"900219":1,"00923":1,"100020":1,"01273":1,"01435":1,"01043":1,"00419":1,"00960":1,"00253":1,"01382":1,"00696":1,"01395":1,"01366":1,"00104":1,"01232":1,"900052":1}}];
+
+// ── MATH ─────────────────────────────────────────────────────────────────────
+function erf(x){const a=[.254829592,-.284496736,1.421413741,-1.453152027,1.061405429],p=.3275911;const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+p*x);const y=1-((((a[4]*t+a[3])*t+a[2])*t+a[1])*t+a[0])*t*Math.exp(-x*x);return s*y}
+function normCdf(x,mu,sigma){if(sigma<=0)return x>=mu?1:0;return .5*(1+erf((x-mu)/(sigma*Math.SQRT2)))}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const APP = {
+  hist: { ocampo: [], tucuman: [] },
+  stocks: { ocampo: {}, tucuman: {} },
+  activeTab: 'hist-ocampo',
+  importTarget: null,  // 'ocampo' | 'tucuman'
+  stockTarget: null,
+};
+
+function normCode(s){s=String(s).trim().replace(/\s+/g,'');if(s.toUpperCase().startsWith('CAT-'))s=s.slice(4);return s.toUpperCase()}
+
+// ── PERSIST ───────────────────────────────────────────────────────────────────
+function saveState(){
+  try{
+    localStorage.setItem('lm_hist_ocampo',JSON.stringify(APP.hist.ocampo));
+    localStorage.setItem('lm_hist_tucuman',JSON.stringify(APP.hist.tucuman));
+    localStorage.setItem('lm_stocks_ocampo',JSON.stringify(APP.stocks.ocampo));
+    localStorage.setItem('lm_stocks_tucuman',JSON.stringify(APP.stocks.tucuman));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const ho=localStorage.getItem('lm_hist_ocampo');
+    const ht=localStorage.getItem('lm_hist_tucuman');
+    const so=localStorage.getItem('lm_stocks_ocampo');
+    const st=localStorage.getItem('lm_stocks_tucuman');
+    if(ho) APP.hist.ocampo=JSON.parse(ho);
+    if(ht) APP.hist.tucuman=JSON.parse(ht);
+    if(so) APP.stocks.ocampo=JSON.parse(so);
+    if(st) APP.stocks.tucuman=JSON.parse(st);
+  }catch(e){}
+  // Si ocampo no tiene datos, cargar pre-cargados
+  if(APP.hist.ocampo.length===0) APP.hist.ocampo=JSON.parse(JSON.stringify(OCAMPO_HIST_INIT));
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  const idx=['hist-ocampo','hist-tucuman','pedidos'].indexOf(id);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  APP.activeTab=id;
+  if(id==='hist-ocampo') renderHistTab('ocampo');
+  else if(id==='hist-tucuman') renderHistTab('tucuman');
+  else renderPedidos();
+}
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+let toastT=null;
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show '+type;
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
+function renderHistTab(suc){
+  const periods=APP.hist[suc];
+  const search=(document.getElementById('hist-search-'+suc)||{}).value||'';
+  const sq=search.toLowerCase();
+  const wrap=document.getElementById('hist-table-'+suc);
+  if(!wrap) return;
+
+  let prods=PRODS;
+  if(sq) prods=prods.filter(p=>p.n.toLowerCase().includes(sq)||p.m.toLowerCase().includes(sq)||p.c.toLowerCase().includes(sq));
+
+  // Stat calc helpers
+  function getStats(p){
+    const vals=periods.map(per=>per.data[p.c]||0);
+    const n=vals.length;
+    const media=n>0?vals.reduce((a,b)=>a+b,0)/n:0;
+    const desv=n>1?Math.sqrt(vals.reduce((s,v)=>s+Math.pow(v-media,2),0)/(n-1)):0;
+    const cv=media>0?(desv/media*100).toFixed(0)+'%':'—';
+    return{media:media.toFixed(1),desv:desv.toFixed(1),cv};
+  }
+
+  let h='<table class="hist-table"><thead><tr>';
+  h+='<th class="col-code frozen frozen-th" style="background:#1a2540">Código</th>';
+  h+='<th class="col-nombre frozen2 frozen-th" style="background:#1a2540;left:80px">Producto</th>';
+  h+='<th class="col-marca">Marca</th>';
+  periods.forEach((per,i)=>{
+    h+=`<th class="period-col-hdr">
+      <input class="period-label-input" value="${esc(per.label)}" onchange="renamePerLabel('${suc}',${i},this.value)">
+      <button class="del-per-btn" onclick="deletePeriod('${suc}',${i})">✕ Eliminar</button>
+    </th>`;
+  });
+  h+='<th class="col-stat" title="Media mensual">Media</th>';
+  h+='<th class="col-stat" title="Desvío estándar">Desvío</th>';
+  h+='<th class="col-stat" title="Coeficiente de variación">CV</th>';
+  h+='</tr></thead><tbody>';
+
+  prods.forEach(p=>{
+    h+=`<tr>`;
+    h+=`<td class="frozen col-code">${esc(p.c)}</td>`;
+    h+=`<td class="frozen2 col-nombre" style="left:80px" title="${esc(p.n)}">${esc(p.n)}</td>`;
+    h+=`<td class="col-marca">${esc(p.m)}</td>`;
+    periods.forEach((per,i)=>{
+      const v=per.data[p.c]||0;
+      h+=`<td class="col-per editable-cell ${v>0?'pos-val':'zero-val'}" ondblclick="editHistCell(this,'${suc}','${p.c}',${i})">${v||''}</td>`;
+    });
+    const st=getStats(p);
+    h+=`<td class="col-stat">${st.media}</td>`;
+    h+=`<td class="col-stat">${st.desv}</td>`;
+    h+=`<td class="col-stat">${st.cv}</td>`;
+    h+='</tr>';
+  });
+
+  if(prods.length===0) h+='<tr><td colspan="'+(6+periods.length)+'" class="empty-row">Sin resultados</td></tr>';
+
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+
+  const cnt=document.getElementById('hist-count-'+suc);
+  if(cnt) cnt.textContent=prods.length+' de '+PRODS.length+' productos | '+periods.length+' períodos';
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function editHistCell(td,suc,code,idx){
+  const cur=APP.hist[suc][idx].data[code]||0;
+  const inp=document.createElement('input');
+  inp.type='number';inp.min=0;inp.value=cur;
+  inp.style.cssText='width:60px;background:#1e3a5f;border:1px solid #3b82f6;border-radius:4px;color:#93c5fd;text-align:right;font-size:12px;outline:none';
+  td.innerHTML='';td.appendChild(inp);inp.focus();inp.select();
+  function commit(){
+    const v=parseInt(inp.value)||0;
+    if(v>0) APP.hist[suc][idx].data[code]=v;
+    else delete APP.hist[suc][idx].data[code];
+    saveState();
+    td.className='col-per editable-cell '+(v>0?'pos-val':'zero-val');
+    td.innerHTML=v||'';
+    td.ondblclick=()=>editHistCell(td,suc,code,idx);
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){td.innerHTML=cur||'';td.ondblclick=()=>editHistCell(td,suc,code,idx);}});
+}
+
+function renamePerLabel(suc,idx,val){APP.hist[suc][idx].label=val;saveState()}
+function deletePeriod(suc,idx){
+  if(!confirm(`¿Eliminar el período "${APP.hist[suc][idx].label}"?`)) return;
+  APP.hist[suc].splice(idx,1);saveState();renderHistTab(suc);toast('Período eliminado');
+}
+function addPeriodManual(suc){
+  const label=prompt('Nombre del período (ej: "Abr 2026"):','');
+  if(!label) return;
+  APP.hist[suc].push({label,data:{}});saveState();renderHistTab(suc);toast('Período "'+label+'" agregado');
+}
+
+// ── IMPORT MES ───────────────────────────────────────────────────────────────
+function showImportMesModal(suc){
+  APP.importTarget=suc;
+  document.getElementById('imp-file').value='';
+  document.getElementById('imp-label').value='';
+  document.getElementById('modal-import').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-import').classList.remove('show')}
+
+async function doImportMes(){
+  const file=document.getElementById('imp-file').files[0];
+  if(!file){toast('Seleccioná un archivo','err');return}
+  const label=document.getElementById('imp-label').value.trim();
+  if(!label){toast('Ingresá el nombre del período','err');return}
+  const colHint=document.getElementById('imp-col').value.trim();
+  const suc=APP.importTarget;
+  try{
+    const xlsx=await ensureXLSX();
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    // Find header row (look for "Código" or "Cod")
+    let hdrIdx=-1,codeCol=-1,cantCol=-1;
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      const row=rows[i];
+      for(let j=0;j<row.length;j++){
+        const v=String(row[j]||'').toLowerCase().replace(/[óo]/g,'o');
+        if(/^cod/.test(v) && codeCol<0){codeCol=j;hdrIdx=i}
+        if((v.includes('cantidad')&&v.includes('vend'))||v===colHint.toLowerCase()){cantCol=j}
+        else if(v==='cantidad total vendida'||v==='cantidad') {if(cantCol<0) cantCol=j}
+      }
+      if(codeCol>=0&&cantCol>=0) break;
+    }
+    if(codeCol<0){toast('No encontré columna de código','err');return}
+    if(cantCol<0){toast('No encontré columna de cantidad. Verificá el nombre de columna.','err');return}
+    const data={};let count=0;
+    for(let i=hdrIdx+1;i<rows.length;i++){
+      const row=rows[i];
+      const rawCode=row[codeCol];
+      const qty=parseFloat(row[cantCol])||0;
+      if(!rawCode||qty<=0) continue;
+      const code=normCode(rawCode);
+      data[code]=Math.round(qty);count++;
+    }
+    // Check if period label exists → update, else add
+    const existing=APP.hist[suc].findIndex(p=>p.label===label);
+    if(existing>=0){
+      if(!confirm(`El período "${label}" ya existe. ¿Reemplazar?`)) return;
+      APP.hist[suc][existing].data=data;
+    } else {
+      APP.hist[suc].push({label,data});
+    }
+    saveState();
+    document.getElementById('modal-import').classList.remove('show');
+    renderHistTab(suc);
+    toast(`✓ Importado "${label}": ${count} productos`,'ok');
+  }catch(e){toast('Error: '+e.message,'err')}
+}
+
+// ── EXPORT HISTORIAL ─────────────────────────────────────────────────────────
+async function exportarHistorial(suc){
+  const periods=APP.hist[suc];
+  if(periods.length===0){toast('Sin períodos para exportar','err');return}
+  try{
+    await ensureXLSX();
+    const rows=[['Código','Producto','Marca','Sub Rubro',...periods.map(p=>p.label),'Media','Desvío','CV']];
+    PRODS.forEach(p=>{
+      const vals=periods.map(per=>per.data[p.c]||0);
+      const n=vals.length;
+      const media=n>0?vals.reduce((a,b)=>a+b,0)/n:0;
+      const desv=n>1?Math.sqrt(vals.reduce((s,v)=>s+Math.pow(v-media,2),0)/(n-1)):0;
+      const cv=media>0?desv/media:0;
+      rows.push([p.c,p.n,p.m,p.r,...vals,+media.toFixed(2),+desv.toFixed(2),+cv.toFixed(3)]);
+    });
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:50},{wch:20},{wch:25},...periods.map(()=>({wch:12})),{wch:8},{wch:8},{wch:6}];
+    XLSX.utils.book_append_sheet(wb,ws,'Historial');
+    XLSX.writeFile(wb,`Historial_${suc==='ocampo'?'Ocampo':'Tucuman'}_${today()}.xlsx`);
+    toast('✓ Historial exportado');
+  }catch(e){toast('Error: '+e.message,'err')}
+}
+
+// ── PEDIDOS ───────────────────────────────────────────────────────────────────
+function getCfg(){
+  return{
+    suc:document.getElementById('ped-suc').value,
+    nper:+document.getElementById('ped-nper').value||6,
+    diasR:+document.getElementById('ped-diasr').value||30,
+    kgMin:+document.getElementById('ped-kgmin').value||0,
+    mVenc:+document.getElementById('ped-mvenc').value||6,
+  };
+}
+
+function onSucChange(){updateStockBtns();schedRender()}
+
+function updateStockBtns(){
+  const suc=document.getElementById('ped-suc').value;
+  const wrap=document.getElementById('stock-btns');
+  let h='<div class="cfg-lbl">Stock actual</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+  if(suc==='consolidado'){
+    h+=`<button class="btn btn-blue btn-sm" onclick="showStockModal('ocampo')">⬆ Ocampo</button>`;
+    h+=`<button class="btn btn-blue btn-sm" onclick="showStockModal('tucuman')">⬆ Tucumán</button>`;
+    h+=`<button class="btn btn-sm" onclick="exportarStock('ocampo')">⬇ Export Ocampo</button>`;
+    h+=`<button class="btn btn-sm" onclick="exportarStock('tucuman')">⬇ Export Tucumán</button>`;
+  } else {
+    h+=`<button class="btn btn-blue btn-sm" onclick="showStockModal('${suc}')">⬆ Importar stock</button>`;
+    h+=`<button class="btn btn-sm" onclick="exportarStock('${suc}')">⬇ Exportar stock</button>`;
+  }
+  h+='</div>';
+  wrap.innerHTML=h;
+}
+
+function showStockModal(suc){
+  APP.stockTarget=suc;
+  document.getElementById('modal-stock-title').textContent=`⬆ Importar Stock – ${suc==='ocampo'?'Ocampo':'Tucumán'}`;
+  document.getElementById('stock-file').value='';
+  document.getElementById('modal-stock').classList.add('show');
+}
+
+async function doImportStock(){
+  const file=document.getElementById('stock-file').files[0];
+  if(!file){toast('Seleccioná un archivo','err');return}
+  const suc=APP.stockTarget;
+  try{
+    await ensureXLSX();
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    let hdrIdx=-1,codeCol=-1,stockCol=-1;
+    for(let i=0;i<Math.min(rows.length,5);i++){
+      const row=rows[i];
+      for(let j=0;j<row.length;j++){
+        const v=String(row[j]||'').toLowerCase().replace(/[óo]/g,'o');
+        if(/^cod/.test(v)&&codeCol<0){codeCol=j;hdrIdx=i}
+        if((v.includes('stock')||v.includes('actual'))&&stockCol<0) stockCol=j;
+      }
+      if(codeCol>=0&&stockCol>=0) break;
+    }
+    if(codeCol<0||stockCol<0){toast('No encontré columnas de código / stock actual','err');return}
+    const stocks={};let count=0;
+    for(let i=hdrIdx+1;i<rows.length;i++){
+      const row=rows[i];
+      const code=normCode(row[codeCol]);
+      const qty=parseFloat(row[stockCol]);
+      if(code&&!isNaN(qty)){stocks[code]=qty;count++}
+    }
+    APP.stocks[suc]=stocks;saveState();
+    document.getElementById('modal-stock').classList.remove('show');
+    schedRender();
+    toast(`✓ Stock ${suc==='ocampo'?'Ocampo':'Tucumán'} importado: ${count} productos`);
+  }catch(e){toast('Error: '+e.message,'err')}
+}
+
+async function exportarStock(suc){
+  try{
+    await ensureXLSX();
+    const rows=[['Código','Producto','Marca','Sub Rubro','Stock Actual']];
+    PRODS.forEach(p=>{rows.push([p.c,p.n,p.m,p.r,APP.stocks[suc][p.c]??''])});
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:50},{wch:20},{wch:25},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,'Stock');
+    XLSX.writeFile(wb,`Stock_${suc==='ocampo'?'Ocampo':'Tucuman'}_${today()}.xlsx`);
+    toast('✓ Stock exportado');
+  }catch(e){toast('Error: '+e.message,'err')}
+}
+
+// Calcular stats de un producto dado suc y nper
+function calcStats(p,suc,nper){
+  let hist;
+  if(suc==='consolidado'){
+    const o=APP.hist.ocampo.map(per=>per.data[p.c]||0);
+    const t=APP.hist.tucuman.map(per=>per.data[p.c]||0);
+    const maxLen=Math.max(o.length,t.length);
+    hist=Array.from({length:maxLen},(_,i)=>(o[i]||0)+(t[i]||0));
+  } else {
+    hist=APP.hist[suc].map(per=>per.data[p.c]||0);
+  }
+  const n=hist.length;
+  const nEff=Math.min(nper,n);
+  const lastN=hist.slice(n-nEff);
+  const vendidoN=lastN.reduce((a,b)=>a+b,0);
+  const media=n>0?hist.reduce((a,b)=>a+b,0)/n:0;
+  const desv=n>1?Math.sqrt(hist.reduce((s,v)=>s+Math.pow(v-media,2),0)/(n-1)):0;
+  const vDiaria=nper>0&&vendidoN>0?vendidoN/(nper*30):0;
+  const desvDiaria=Math.sqrt(30)>0?desv/Math.sqrt(30):0;
+  const mediaDiaria=media/30;
+  return{vendidoN,vDiaria,mediaDiaria,desvDiaria};
+}
+
+function getStockActual(p,suc){
+  if(suc==='consolidado'){
+    const o=APP.stocks.ocampo[p.c]??null;
+    const t=APP.stocks.tucuman[p.c]??null;
+    if(o===null&&t===null) return null;
+    return(o||0)+(t||0);
+  }
+  const v=APP.stocks[suc][p.c];
+  return v!==undefined?v:null;
+}
+
+let renderTimeout=null;
+function schedRender(){clearTimeout(renderTimeout);renderTimeout=setTimeout(renderPedidos,30)}
+
+function renderPedidos(){
+  const cfg=getCfg();
+  const q=(document.getElementById('ped-search').value||'').toLowerCase();
+  const mf=document.getElementById('ped-marca').value;
+  const rf=document.getElementById('ped-rubro').value;
+  const solo=document.getElementById('ped-solo-pedido').checked;
+
+  let totKg=0,totUnid=0,totProds=0,visibles=0;
+  const frag=document.createDocumentFragment();
+
+  PRODS.forEach(p=>{
+    const st=calcStats(p,cfg.suc,cfg.nper);
+    const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
+    const stockAct=getStockActual(p,cfg.suc);
+    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const totalKg=(p.k!=null&&aPedir>0)?+(aPedir*p.k).toFixed(1):null;
+
+    // Totals (all products)
+    totUnid+=aPedir;
+    if(totalKg) totKg+=totalKg;
+    if(aPedir>0) totProds++;
+
+    // Filters
+    if(mf&&p.m!==mf) return;
+    if(rf&&p.r!==rf) return;
+    if(solo&&aPedir===0) return;
+    if(q&&!p.n.toLowerCase().includes(q)&&!p.m.toLowerCase().includes(q)&&!p.c.toLowerCase().includes(q)) return;
+    visibles++;
+
+    // Prob vencimiento
+    let probH='<span class="muted">—</span>';
+    if(st.mediaDiaria>0&&st.desvDiaria>0&&aPedir>0){
+      const V=cfg.mVenc*30;
+      const mu=st.mediaDiaria*V;
+      const sigma=Math.max(st.desvDiaria*Math.sqrt(V),0.001);
+      const prob=normCdf(aPedir,mu,sigma);
+      const cls=prob<.05?'g':prob<.2?'a':'r';
+      probH=`<span class="prob-badge ${cls}">${(prob*100).toFixed(0)}%</span>`;
+    }
+
+    const stockActDisp=stockAct!==null?stockAct:'—';
+    const totalKgDisp=totalKg?`<span class="kg-val">${totalKg}</span>`:'<span class="muted">—</span>';
+    const kgUn=p.k!=null?p.k:'<span class="muted">—</span>';
+    const vdDisp=st.vDiaria>0?st.vDiaria.toFixed(3):'<span class="muted">—</span>';
+    const vendDisp=st.vendidoN>0?`<span class="pos-val">${st.vendidoN}</span>`:'<span class="muted">—</span>';
+
+    const tr=document.createElement('tr');
+    if(aPedir>0) tr.className='has-order';
+    tr.innerHTML=`
+      <td class="ped-frozen" style="font-family:monospace;font-size:11px;color:#64748b">${esc(p.c)}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;font-weight:500" title="${esc(p.n)}">${esc(p.n)}</td>
+      <td style="color:#94a3b8">${esc(p.m)}</td>
+      <td style="color:#64748b;font-size:11px">${esc(p.r||'')}</td>
+      <td style="padding:3px 6px;text-align:center">
+        <input type="number" min="0" class="stock-inp" data-code="${esc(p.c)}" data-suc="${cfg.suc}"
+          value="${stockAct!==null?stockAct:''}" placeholder="—">
+      </td>
+      <td class="num">${vendDisp}</td>
+      <td class="num">${vdDisp}</td>
+      <td class="num">${stockOpt}</td>
+      <td class="a-pedir-cell"><span class="ap-badge ${aPedir>0?'pos':'zero'}">${aPedir}</span></td>
+      <td class="num">${kgUn}</td>
+      <td class="num">${totalKgDisp}</td>
+      <td class="ctr">${probH}</td>
+    `;
+    frag.appendChild(tr);
+  });
+
+  document.getElementById('ped-tbody').replaceChildren(frag);
+  document.getElementById('ped-fcount').textContent=visibles+' / '+PRODS.length;
+  document.getElementById('sf-prods').textContent=totProds;
+  document.getElementById('sf-unid').textContent=totUnid;
+  document.getElementById('sf-kg').textContent=totKg.toFixed(1)+' kg';
+
+  // Min badge
+  const minEl=document.getElementById('sf-min');
+  const kgMin=cfg.kgMin;
+  if(kgMin>0){
+    const falta=kgMin-totKg;
+    minEl.innerHTML=`<span class="kg-badge ${falta<=0?'ok':'warn'}">${falta<=0?'✓ Mínimo OK':'⚠ Faltan '+falta.toFixed(0)+' kg'}</span>`;
+  } else minEl.innerHTML='';
+}
+
+// Event delegation para stock inputs en pedidos
+document.getElementById('ped-tbody').addEventListener('input',e=>{
+  if(!e.target.classList.contains('stock-inp')) return;
+  const code=e.target.dataset.code;
+  const suc=e.target.dataset.suc;
+  const val=e.target.value===''?undefined:parseFloat(e.target.value);
+  if(suc==='consolidado'){
+    // Asignar a ocampo por defecto en consolidado (el usuario debería importar ambas)
+    if(val===undefined) delete APP.stocks.ocampo[code];
+    else APP.stocks.ocampo[code]=val;
+  } else {
+    if(val===undefined) delete APP.stocks[suc][code];
+    else APP.stocks[suc][code]=val;
+  }
+  saveState();schedRender();
+});
+
+// ── EXPORT PEDIDO ─────────────────────────────────────────────────────────────
+async function exportarPedido(){
+  const cfg=getCfg();
+  const sucLabel={'ocampo':'Ocampo','tucuman':'Tucumán','consolidado':'Consolidado'}[cfg.suc];
+  try{
+    await ensureXLSX();
+    const rows=[
+      [`PEDIDO – ${sucLabel} – ${today()}`],
+      [`N Períodos: ${cfg.nper} | Días Repos: ${cfg.diasR} | Kg Mín: ${cfg.kgMin} | Meses Venc: ${cfg.mVenc}`],
+      [],
+      ['Código','Producto','Marca','Sub Rubro','Vendido (N per.)','V.Diaria','Stock Óptimo','Stock Actual','A Pedir','Kg/Unidad','Total Kg','Prob.Venc.%'],
+    ];
+    let totKg=0,totUnid=0;
+    PRODS.forEach(p=>{
+      const st=calcStats(p,cfg.suc,cfg.nper);
+      const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
+      const stockAct=getStockActual(p,cfg.suc);
+      const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+      if(aPedir===0) return;
+      const totalKg=p.k!=null?+(aPedir*p.k).toFixed(1):'';
+      let prob='';
+      if(st.mediaDiaria>0&&st.desvDiaria>0&&aPedir>0){
+        const V=cfg.mVenc*30;
+        const mu=st.mediaDiaria*V;
+        const sigma=Math.max(st.desvDiaria*Math.sqrt(V),0.001);
+        prob=+(normCdf(aPedir,mu,sigma)*100).toFixed(1);
+      }
+      if(totalKg) totKg+=totalKg;
+      totUnid+=aPedir;
+      rows.push([p.c,p.n,p.m,p.r||'',st.vendidoN,+st.vDiaria.toFixed(4),stockOpt,
+        stockAct!==null?stockAct:'',aPedir,p.k??'',totalKg,prob]);
+    });
+    rows.push([]);
+    rows.push(['','','','','','','','','TOTAL','' ,+totKg.toFixed(1),'']);
+    rows.push(['','','','','','','','','UNIDADES','',totUnid,'']);
+
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:50},{wch:20},{wch:25},{wch:14},{wch:10},{wch:11},{wch:12},{wch:9},{wch:10},{wch:10},{wch:11}];
+    XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+
+    // Hoja de config
+    const cfg_rows=[['Parámetro','Valor'],['Sucursal',sucLabel],['N Períodos',cfg.nper],
+      ['Días Reposición',cfg.diasR],['Kg Mínimo',cfg.kgMin],['Meses Vencimiento',cfg.mVenc],
+      ['Fecha exportación',today()]];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cfg_rows),'Config');
+
+    XLSX.writeFile(wb,`Pedido_${sucLabel.replace(/ /g,'_')}_${today()}.xlsx`);
+    toast(`✓ Pedido exportado: ${totUnid} unidades, ${totKg.toFixed(1)} kg`);
+  }catch(e){toast('Error: '+e.message,'err')}
+}
+
+// ── XLSX LAZY LOAD ────────────────────────────────────────────────────────────
+let xlsxPromise=null;
+function ensureXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(xlsxPromise) return xlsxPromise;
+  xlsxPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(window.XLSX);
+    s.onerror=()=>{xlsxPromise=null;rej(new Error('No se pudo cargar SheetJS. Verificá conexión a internet.'))};
+    document.head.appendChild(s);
+  });
+  return xlsxPromise;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function today(){const d=new Date();return d.toISOString().slice(0,10)}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+loadState();
+updateStockBtns();
+renderHistTab('ocampo');
+</script>
+</body>
+</html>
