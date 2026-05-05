@@ -435,13 +435,17 @@ async function saveToFirebase(){
 }
 async function loadFromFirebase(){
   document.getElementById('loading-txt').textContent='Cargando datos desde Firebase...';
+  const fbTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout')),8000));
   try{
-    const [ho,ht,so,st,pm]=await Promise.all([
-      db.collection(COL).doc('hist_ocampo').get(),
-      db.collection(COL).doc('hist_tucuman').get(),
-      db.collection(COL).doc('stocks_ocampo').get(),
-      db.collection(COL).doc('stocks_tucuman').get(),
-      db.collection(COL).doc('productos_master').get(),
+    const [ho,ht,so,st,pm]=await Promise.race([
+      Promise.all([
+        db.collection(COL).doc('hist_ocampo').get(),
+        db.collection(COL).doc('hist_tucuman').get(),
+        db.collection(COL).doc('stocks_ocampo').get(),
+        db.collection(COL).doc('stocks_tucuman').get(),
+        db.collection(COL).doc('productos_master').get(),
+      ]),
+      fbTimeout
     ]);
     APP.hist.ocampo=ho.exists&&ho.data().periods.length>0?ho.data().periods:JSON.parse(JSON.stringify(OCAMPO_HIST_INIT));
     APP.hist.tucuman=ht.exists?ht.data().periods:[];
@@ -1047,17 +1051,17 @@ function autoIncreaseKg(){
   }
   scheduleSave(); schedRender();
   const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,22):c)+' +'+adjustments[c]+'u'});
-  toast('\u2713 Auto-aumentado: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
+  toast('✓ Auto-aumentado: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
 }
 
 function undoAutoAdjust(){
   const adj=APP.autoAdjust;
   if(!adj.type||!adj.snapshot){toast('Sin ajuste para anular','err');return}
   APP.stocks[adj.suc]=JSON.parse(JSON.stringify(adj.snapshot));
-  const label=adj.type==='reduce'?'Auto-reducci\u00f3n':'Auto-aumento';
+  const label=adj.type==='reduce'?'Auto-reducción':'Auto-aumento';
   APP.autoAdjust={type:null,snapshot:null,suc:null};
   scheduleSave(); schedRender();
-  toast('\u2713 '+label+' anulado \u2014 stock restaurado','ok');
+  toast('✓ '+label+' anulado — stock restaurado','ok');
 }
 
 function schedRender(){clearTimeout(renderTimeout);renderTimeout=setTimeout(renderPedidos,30)}
