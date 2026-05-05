@@ -395,9 +395,10 @@ const APP = {
   hist:{ocampo:[],tucuman:[]},
   stocks:{ocampo:{},tucuman:{}},
   importTarget:null, stockTarget:null,
-  pinned: new Set(),             // codes of pinned rows
-  colFilters: {},                // colKey -> Set of selected values (null = all)
-  colWidths: {},                 // colKey -> px width
+  pinned: new Set(),
+  colFilters: {},
+  colWidths: {},
+  autoAdjust: {type:null, snapshot:null, suc:null}
 };
 function normCode(s){s=String(s).trim().replace(/\s+/g,'');if(s.toUpperCase().startsWith('CAT-'))s=s.slice(4);return s.toUpperCase()}
 
@@ -972,7 +973,8 @@ function applyColFilter(){
 function autoReduceKg(){
   const cfg=getCfg();
   if(cfg.kgMax<=0){toast('Configurá un Kg Máximo primero','err');return}
-  // Get pinned rows and their current data
+  const suc=cfg.suc==='consolidado'?'ocampo':cfg.suc;
+  APP.autoAdjust={type:'reduce',snapshot:JSON.parse(JSON.stringify(APP.stocks[suc])),suc};
   const pinnedData=[];
   PRODS.forEach(p=>{
     if(!APP.pinned.has(p.c)) return;
@@ -985,43 +987,79 @@ function autoReduceKg(){
   });
   let totalKg=pinnedData.reduce((s,r)=>s+r.kg,0);
   const excess=totalKg-cfg.kgMax;
-  if(excess<=0){toast('El pedido ya está dentro del máximo de Kg','ok');return}
-  // Sort by CV descending (más volátil = menos confiable = recortar primero)
+  if(excess<=0){toast('El pedido ya está dentro del máximo','ok');APP.autoAdjust={type:null,snapshot:null,suc:null};return}
   pinnedData.sort((a,b)=>b.cv-a.cv);
-  // Reduce one unit at a time from highest CV, skipping if no kg info
-  const adjustments={};
-  let toReduce=excess;
+  const adjustments={};let toReduce=excess;
   while(toReduce>0){
     let reduced=false;
     for(const r of pinnedData){
       if(r.aPedir<=0) continue;
-      const kgPerUnit=r.p.k;
-      if(kgPerUnit<=0||kgPerUnit>toReduce*1.5) continue;
-      r.aPedir--; toReduce-=kgPerUnit;
-      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1;
-      reduced=true;
+      const kpu=r.p.k;
+      if(kpu<=0||kpu>toReduce*1.5) continue;
+      r.aPedir--; toReduce-=kpu;
+      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1; reduced=true;
       if(toReduce<=0) break;
     }
-    if(!reduced) break;  // Can't reduce further
+    if(!reduced) break;
   }
-  // Apply adjustments by modifying stocks upward
   for(const[code,units] of Object.entries(adjustments)){
-    const suc=cfg.suc==='consolidado'?'ocampo':cfg.suc;
-    const cur=APP.stocks[suc][code]??null;
-    const p=PRODS.find(x=>x.c===code);
-    if(!p) continue;
-    const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
-    const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
-    const newStock=(cur||0)+units;
-    APP.stocks[suc][code]=newStock;
+    const cur=APP.stocks[suc][code]??0;
+    APP.stocks[suc][code]=cur+units;
   }
   scheduleSave(); schedRender();
-  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return (p?p.n.slice(0,25):c)+' -'+adjustments[c]+'u'});
-  toast(`✓ Kg reducidos. Ajustado: ${names.slice(0,3).join(', ')}${names.length>3?'...':''}`,'ok');
+  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,22):c)+' -'+adjustments[c]+'u'});
+  toast('✓ Auto-reducido: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
 }
 
-/* ── PEDIDOS RENDER ────────────────────────────────────────────────────── */
-let renderTimeout=null;
+function autoIncreaseKg(){
+  const cfg=getCfg();
+  if(cfg.kgMin<=0){toast('Configurá un Kg Mínimo primero','err');return}
+  const suc=cfg.suc==='consolidado'?'ocampo':cfg.suc;
+  APP.autoAdjust={type:'increase',snapshot:JSON.parse(JSON.stringify(APP.stocks[suc])),suc};
+  const pinnedData=[];
+  PRODS.forEach(p=>{
+    if(!APP.pinned.has(p.c)) return;
+    const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
+    const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
+    const stockAct=getStockActual(p,cfg.suc);
+    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    if(p.k==null) return;
+    pinnedData.push({p,aPedir,cv:st.cv,kg:aPedir*p.k});
+  });
+  let totalKg=pinnedData.reduce((s,r)=>s+r.kg,0);
+  const deficit=cfg.kgMin-totalKg;
+  if(deficit<=0){toast('El pedido ya supera el mínimo','ok');APP.autoAdjust={type:null,snapshot:null,suc:null};return}
+  pinnedData.sort((a,b)=>a.cv-b.cv);
+  const adjustments={};let toAdd=deficit;
+  while(toAdd>0){
+    let added=false;
+    for(const r of pinnedData){
+      if(r.p.k==null||r.p.k<=0) continue;
+      r.aPedir++; toAdd-=r.p.k;
+      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1; added=true;
+      if(toAdd<=0) break;
+    }
+    if(!added) break;
+  }
+  for(const[code,units] of Object.entries(adjustments)){
+    const cur=APP.stocks[suc][code]??0;
+    APP.stocks[suc][code]=Math.max(0,cur-units);
+  }
+  scheduleSave(); schedRender();
+  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,22):c)+' +'+adjustments[c]+'u'});
+  toast('\u2713 Auto-aumentado: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
+}
+
+function undoAutoAdjust(){
+  const adj=APP.autoAdjust;
+  if(!adj.type||!adj.snapshot){toast('Sin ajuste para anular','err');return}
+  APP.stocks[adj.suc]=JSON.parse(JSON.stringify(adj.snapshot));
+  const label=adj.type==='reduce'?'Auto-reducci\u00f3n':'Auto-aumento';
+  APP.autoAdjust={type:null,snapshot:null,suc:null};
+  scheduleSave(); schedRender();
+  toast('\u2713 '+label+' anulado \u2014 stock restaurado','ok');
+}
+
 function schedRender(){clearTimeout(renderTimeout);renderTimeout=setTimeout(renderPedidos,30)}
 
 function passesColFilters(p, st){
@@ -1149,10 +1187,30 @@ function renderPedidos(){
   const sfMin=document.getElementById('sf-min');
   const km=cfg.kgMin, kx=cfg.kgMax;
   let badges='';
-  if(km>0){const f=km-totKg; badges+=`<span class="kg-badge ${f<=0?'ok':'warn'}">${f<=0?'✓ Mín OK':'⚠ Faltan '+f.toFixed(0)+' kg'}</span>`}
-  if(kx>0){const ex=totKg-kx;
-    if(ex>0) badges+=`<span class="kg-badge warn" style="background:#7c3aed">⬆ Excede ${ex.toFixed(0)} kg <button onclick="autoReduceKg()" style="margin-left:6px;background:#5b21b6;border:1px solid #7c3aed;color:#fff;border-radius:5px;padding:1px 8px;cursor:pointer;font-size:11px">Auto-reducir</button></span>`;
-    else badges+=`<span class="kg-badge ok" style="background:#0369a1">✓ Bajo máx (${(kx-totKg).toFixed(0)} kg libre)</span>`;
+  const adj=APP.autoAdjust;
+  if(km>0){
+    const f=km-totKg;
+    if(f>0){
+      if(adj.type==='increase'){
+        badges+=`<span class="kg-badge ok" style="background:#065f46">★ Auto-aumentado <button onclick="undoAutoAdjust()" style="margin-left:6px;background:#064e3b;border:1px solid #10b981;color:#6ee7b7;border-radius:5px;padding:2px 9px;cursor:pointer;font-size:11px;font-weight:600">↩ Anular auto-aumento</button></span>`;
+      } else {
+        badges+=`<span class="kg-badge warn">⚠ Faltan ${f.toFixed(0)} kg <button onclick="autoIncreaseKg()" style="margin-left:6px;background:#92400e;border:1px solid #d97706;color:#fff;border-radius:5px;padding:2px 9px;cursor:pointer;font-size:11px;font-weight:600">Auto-aumentar</button></span>`;
+      }
+    } else {
+      badges+=`<span class="kg-badge ok">✓ Mín OK</span>`;
+    }
+  }
+  if(kx>0){
+    const ex=totKg-kx;
+    if(ex>0){
+      if(adj.type==='reduce'){
+        badges+=`<span class="kg-badge ok" style="background:#3b0764">★ Auto-reducido <button onclick="undoAutoAdjust()" style="margin-left:6px;background:#2e1065;border:1px solid #a855f7;color:#d8b4fe;border-radius:5px;padding:2px 9px;cursor:pointer;font-size:11px;font-weight:600">↩ Anular auto-reducción</button></span>`;
+      } else {
+        badges+=`<span class="kg-badge warn" style="background:#7c3aed">⬆ Excede ${ex.toFixed(0)} kg <button onclick="autoReduceKg()" style="margin-left:6px;background:#5b21b6;border:1px solid #7c3aed;color:#fff;border-radius:5px;padding:2px 9px;cursor:pointer;font-size:11px;font-weight:600">Auto-reducir</button></span>`;
+      }
+    } else {
+      badges+=`<span class="kg-badge ok" style="background:#0369a1">✓ Bajo máx (${(kx-totKg).toFixed(0)} kg libre)</span>`;
+    }
   }
   sfMin.innerHTML=badges;
 
