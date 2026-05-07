@@ -294,19 +294,19 @@ td.num{text-align:right}td.ctr{text-align:center}
         <th style="min-width:210px"><span style="display:inline-flex;align-items:center;gap:2px">Producto<button class="col-filter-btn" id="cf-btn-producto" title="Filtrar Producto" onclick="openTextColFilter(this,'producto')">▼</button></span></th>
         <th style="min-width:100px"><span style="display:inline-flex;align-items:center;gap:2px">Marca<button class="col-filter-btn" id="cf-btn-marca" title="Filtrar Marca" onclick="openColFilter(this,'marca')">▼</button></span></th>
         <th style="min-width:110px"><span style="display:inline-flex;align-items:center;gap:2px">Rubro<button class="col-filter-btn" id="cf-btn-rubro" title="Filtrar Rubro" onclick="openColFilter(this,'rubro')">▼</button></span></th>
-        <th style="min-width:72px;text-align:center">Stock
-Actual</th>
-        <th style="min-width:80px">Venta
-Pond.(N)</th>
-        <th style="min-width:70px">V.Diaria
-pond.</th>
-        <th style="min-width:70px">Stock
-Óptimo</th>
-        <th style="min-width:68px;text-align:center">A PEDIR</th>
+        <th onclick="toggleSort('stock')" style="cursor:pointer;min-width:72px;text-align:center">Stock
+Actual<span id="sort-icon-stock"></span></th>
+        <th onclick="toggleSort('vendido')" style="cursor:pointer;min-width:80px">Venta
+Pond.(N)<span id="sort-icon-vendido"></span></th>
+        <th onclick="toggleSort('vdiaria')" style="cursor:pointer;min-width:70px">V.Diaria
+pond.<span id="sort-icon-vdiaria"></span></th>
+        <th onclick="toggleSort('optimo')" style="cursor:pointer;min-width:70px">Stock
+Óptimo<span id="sort-icon-optimo"></span></th>
+        <th onclick="toggleSort('apedir')" style="cursor:pointer;min-width:68px;text-align:center">A PEDIR<span id="sort-icon-apedir"></span></th>
         <th style="min-width:62px"><span style="display:inline-flex;align-items:center;gap:2px">Kg/Un.<button class="col-filter-btn" id="cf-btn-kg" title="Filtrar Kg/Un." onclick="openColFilter(this,'kg')">▼</button></span></th>
-        <th style="min-width:72px">Total Kg</th>
-        <th style="min-width:68px;text-align:center">Prob.
-Venc.</th>
+        <th onclick="toggleSort('totalkg')" style="cursor:pointer;min-width:72px">Total Kg<span id="sort-icon-totalkg"></span></th>
+        <th onclick="toggleSort('prob')" style="cursor:pointer;min-width:68px;text-align:center">Prob.
+Venc.<span id="sort-icon-prob"></span></th>
       </tr></thead>
       <tbody id="ped-tbody"></tbody>
     </table>
@@ -414,7 +414,9 @@ const APP = {
   pinned: new Set(),
   colFilters: {},
   colWidths: {},
-  autoAdjust: {type:null, snapshot:null, suc:null}
+  autoAdjust: {type:null},
+  adjustments: {},
+  sort: {col:null, dir:1}
 };
 function normCode(s){s=String(s).trim().replace(/\s+/g,'');if(s.toUpperCase().startsWith('CAT-'))s=s.slice(4);return s.toUpperCase()}
 
@@ -871,10 +873,21 @@ async function exportarStock(suc){
 function calcStats(p, suc, nper, alpha){
   let hist;
   if(suc==='consolidado'){
-    const o=APP.hist.ocampo.map(per=>(per.data&&per.data[p.c])||0);
-    const t=APP.hist.tucuman.map(per=>(per.data&&per.data[p.c])||0);
-    const maxLen=Math.max(o.length,t.length);
-    hist=Array.from({length:maxLen},(_,i)=>(o[i]||0)+(t[i]||0));
+    // Align by period label so same month sums correctly
+    const labelsO=APP.hist.ocampo.map(p=>p.label);
+    const labelsT=APP.hist.tucuman.map(p=>p.label);
+    const allLabels=[...new Set([...labelsO,...labelsT])];
+    // Sort labels chronologically by their order of appearance
+    const orderMap={};
+    [...APP.hist.ocampo,...APP.hist.tucuman].forEach((per,i)=>{if(orderMap[per.label]===undefined)orderMap[per.label]=i});
+    allLabels.sort((a,b)=>(orderMap[a]||0)-(orderMap[b]||0));
+    hist=allLabels.map(lbl=>{
+      const oIdx=labelsO.indexOf(lbl);
+      const tIdx=labelsT.indexOf(lbl);
+      const oVal=oIdx>=0?((APP.hist.ocampo[oIdx].data&&APP.hist.ocampo[oIdx].data[p.c])||0):0;
+      const tVal=tIdx>=0?((APP.hist.tucuman[tIdx].data&&APP.hist.tucuman[tIdx].data[p.c])||0):0;
+      return oVal+tVal;
+    });
   }else{
     hist=APP.hist[suc].map(per=>(per.data&&per.data[p.c])||0);
   }
@@ -1014,94 +1027,104 @@ function applyColFilter(){
 function autoReduceKg(){
   const cfg=getCfg();
   if(cfg.kgMax<=0){toast('Configurá un Kg Máximo primero','err');return}
-  const suc=cfg.suc==='consolidado'?'ocampo':cfg.suc;
-  APP.autoAdjust={type:'reduce',snapshot:JSON.parse(JSON.stringify(APP.stocks[suc])),suc};
-  const pinnedData=[];
+  APP.autoAdjust={type:'reduce',snapshot:JSON.parse(JSON.stringify(APP.adjustments))};
+  const rows=[];
   PRODS.forEach(p=>{
-    if(!APP.pinned.has(p.c)) return;
+    if(!APP.pinned.has(p.c)||p.k==null) return;
     const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
     const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
     const stockAct=getStockActual(p,cfg.suc);
-    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
-    if(aPedir===0||p.k==null) return;
-    pinnedData.push({p,aPedir,cv:st.cv,kg:aPedir*p.k});
+    const baseAP=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const aPedir=Math.max(0,baseAP+(APP.adjustments[p.c]||0));
+    if(aPedir===0) return;
+    rows.push({p,aPedir,kg:aPedir*p.k});
   });
-  let totalKg=pinnedData.reduce((s,r)=>s+r.kg,0);
+  const totalKg=rows.reduce((s,r)=>s+r.kg,0);
   const excess=totalKg-cfg.kgMax;
-  if(excess<=0){toast('El pedido ya está dentro del máximo','ok');APP.autoAdjust={type:null,snapshot:null,suc:null};return}
-  pinnedData.sort((a,b)=>b.cv-a.cv);
-  const adjustments={};let toReduce=excess;
-  while(toReduce>0){
-    let reduced=false;
-    for(const r of pinnedData){
-      if(r.aPedir<=0) continue;
-      const kpu=r.p.k;
-      if(kpu<=0||kpu>toReduce*1.5) continue;
-      r.aPedir--; toReduce-=kpu;
-      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1; reduced=true;
-      if(toReduce<=0) break;
+  if(excess<=0){toast('El pedido ya está dentro del máximo','ok');APP.autoAdjust={type:null};return}
+  // Reducción proporcional: cada producto aporta en proporción a su peso total
+  const adjustments={};
+  rows.forEach(r=>{
+    const proportion=r.kg/totalKg;
+    // Cuántas unidades reducir: excess * proportion / kg_por_unidad
+    const unitsToRemove=Math.min(r.aPedir, Math.round(excess*proportion/r.p.k));
+    if(unitsToRemove>0){
+      adjustments[r.p.c]=-unitsToRemove;
     }
-    if(!reduced) break;
+  });
+  // Fine-tune: check remaining excess after proportional reduction
+  for(const[code,delta] of Object.entries(adjustments)){
+    APP.adjustments[code]=(APP.adjustments[code]||0)+delta;
   }
-  for(const[code,units] of Object.entries(adjustments)){
-    const cur=APP.stocks[suc][code]??0;
-    APP.stocks[suc][code]=cur+units;
-  }
-  scheduleSave(); schedRender();
-  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,22):c)+' -'+adjustments[c]+'u'});
-  toast('✓ Auto-reducido: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
+  schedRender();
+  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,20):c)+' '+adjustments[c]+'u'});
+  toast('✓ Auto-reducido (proporcional): '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
 }
 
 function autoIncreaseKg(){
   const cfg=getCfg();
   if(cfg.kgMin<=0){toast('Configurá un Kg Mínimo primero','err');return}
-  const suc=cfg.suc==='consolidado'?'ocampo':cfg.suc;
-  APP.autoAdjust={type:'increase',snapshot:JSON.parse(JSON.stringify(APP.stocks[suc])),suc};
-  const pinnedData=[];
+  APP.autoAdjust={type:'increase',snapshot:JSON.parse(JSON.stringify(APP.adjustments))};
+  const rows=[];
   PRODS.forEach(p=>{
-    if(!APP.pinned.has(p.c)) return;
+    if(!APP.pinned.has(p.c)||p.k==null) return;
     const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
     const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
     const stockAct=getStockActual(p,cfg.suc);
-    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
-    if(p.k==null) return;
-    pinnedData.push({p,aPedir,cv:st.cv,kg:aPedir*p.k});
+    const baseAP=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const aPedir=Math.max(0,baseAP+(APP.adjustments[p.c]||0));
+    // Prob vencimiento — menor prob = más seguro aumentar
+    let prob=1;
+    if(st.mediaDiaria>0&&st.desvDiaria>0){
+      const newAP=aPedir+1;
+      const V=cfg.mVenc*30,mu=st.mediaDiaria*V,sigma=Math.max(st.desvDiaria*Math.sqrt(V),.001);
+      prob=normCdf(newAP,mu,sigma);
+    }
+    rows.push({p,aPedir,prob,kg:aPedir*p.k});
   });
-  let totalKg=pinnedData.reduce((s,r)=>s+r.kg,0);
+  const totalKg=rows.reduce((s,r)=>s+r.kg,0);
   const deficit=cfg.kgMin-totalKg;
-  if(deficit<=0){toast('El pedido ya supera el mínimo','ok');APP.autoAdjust={type:null,snapshot:null,suc:null};return}
-  pinnedData.sort((a,b)=>a.cv-b.cv);
-  const adjustments={};let toAdd=deficit;
-  while(toAdd>0){
+  if(deficit<=0){toast('El pedido ya supera el mínimo','ok');APP.autoAdjust={type:null};return}
+  // Sort by prob venc ascending: aumentar primero los de menor riesgo de vencimiento
+  rows.sort((a,b)=>a.prob-b.prob);
+  let toAdd=deficit;
+  const adjustments={};
+  while(toAdd>0.01){
     let added=false;
-    for(const r of pinnedData){
-      if(r.p.k==null||r.p.k<=0) continue;
-      r.aPedir++; toAdd-=r.p.k;
-      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1; added=true;
-      if(toAdd<=0) break;
+    for(const r of rows){
+      if(r.p.k<=0) continue;
+      r.aPedir++;r.kg+=r.p.k;toAdd-=r.p.k;
+      adjustments[r.p.c]=(adjustments[r.p.c]||0)+1;added=true;
+      if(toAdd<=0.01) break;
     }
     if(!added) break;
   }
-  for(const[code,units] of Object.entries(adjustments)){
-    const cur=APP.stocks[suc][code]??0;
-    APP.stocks[suc][code]=Math.max(0,cur-units);
-  }
-  scheduleSave(); schedRender();
-  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,22):c)+' +'+adjustments[c]+'u'});
-  toast('✓ Auto-aumentado: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
+  for(const[code,delta] of Object.entries(adjustments))
+    APP.adjustments[code]=(APP.adjustments[code]||0)+delta;
+  schedRender();
+  const names=Object.keys(adjustments).map(c=>{const p=PRODS.find(x=>x.c===c);return(p?p.n.slice(0,20):c)+' +'+adjustments[c]+'u'});
+  toast('\u2713 Auto-aumentado: '+names.slice(0,3).join(', ')+(names.length>3?'...':''),'ok');
 }
 
 function undoAutoAdjust(){
   const adj=APP.autoAdjust;
   if(!adj.type||!adj.snapshot){toast('Sin ajuste para anular','err');return}
-  APP.stocks[adj.suc]=JSON.parse(JSON.stringify(adj.snapshot));
+  APP.adjustments=JSON.parse(JSON.stringify(adj.snapshot));
   const label=adj.type==='reduce'?'Auto-reducción':'Auto-aumento';
-  APP.autoAdjust={type:null,snapshot:null,suc:null};
-  scheduleSave(); schedRender();
-  toast('✓ '+label+' anulado — stock restaurado','ok');
+  APP.autoAdjust={type:null};
+  schedRender();
+  toast('✓ '+label+' anulado — pedido restaurado','ok');
 }
 
-let renderTimeout=null;
+function toggleSort(col){
+  if(APP.sort.col===col) APP.sort.dir*=-1;
+  else{APP.sort.col=col;APP.sort.dir=-1}
+  schedRender();
+}
+function sortIcon(col){
+  if(APP.sort.col!==col) return '<span style="opacity:.3;font-size:9px">\u21c5</span>';
+  return APP.sort.dir===-1?'<span style="color:#60a5fa;font-size:9px">\u2193</span>':'<span style="color:#60a5fa;font-size:9px">\u2191</span>';
+}
 function schedRender(){clearTimeout(renderTimeout);renderTimeout=setTimeout(renderPedidos,30)}
 
 function passesColFilters(p, st){
@@ -1136,10 +1159,13 @@ function renderPedidos(){
     const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
     const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
     const stockAct=getStockActual(p,cfg.suc);
-    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const baseAPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const aPedir=Math.max(0,baseAPedir+(APP.adjustments[p.c]||0));
     const totalKg=(p.k!=null&&aPedir>0)?+(aPedir*p.k).toFixed(1):null;
     const pinned=APP.pinned.has(p.c);
-    return{p,st,stockOpt,stockAct,aPedir,totalKg,pinned};
+    let probVal=null;
+    if(st.mediaDiaria>0&&st.desvDiaria>0&&aPedir>0){const V=cfg.mVenc*30,mu=st.mediaDiaria*V,sigma=Math.max(st.desvDiaria*Math.sqrt(V),.001);probVal=normCdf(aPedir,mu,sigma)}
+    return{p,st,stockOpt,stockAct,aPedir,totalKg,pinned,probVal};
   });
 
   // Totals: only pinned rows (or all if none pinned)
@@ -1149,6 +1175,23 @@ function renderPedidos(){
   forTotals.forEach(r=>{totUnid+=r.aPedir;if(r.totalKg)totKg+=r.totalKg;if(r.aPedir>0)totProds++});
 
   // Filter for display
+  // Sort allRows if sort active
+  const sortCol=APP.sort.col, sortDir=APP.sort.dir;
+  if(sortCol){
+    allRows.sort((a,b)=>{
+      let va=0,vb=0;
+      if(sortCol==='stock')    {va=a.stockAct??-1;vb=b.stockAct??-1}
+      if(sortCol==='vendido')  {va=a.st.vendidoPond;vb=b.st.vendidoPond}
+      if(sortCol==='vdiaria')  {va=a.st.vDiaria;vb=b.st.vDiaria}
+      if(sortCol==='optimo')   {va=a.stockOpt;vb=b.stockOpt}
+      if(sortCol==='apedir')   {va=a.aPedir;vb=b.aPedir}
+      if(sortCol==='kg')       {va=a.p.k??-1;vb=b.p.k??-1}
+      if(sortCol==='totalkg')  {va=a.totalKg??-1;vb=b.totalKg??-1}
+      if(sortCol==='prob')     {va=a.probVal??-1;vb=b.probVal??-1}
+      return sortDir*(va-vb);
+    });
+  }
+
   const passFilter=r=>{
     if(solo&&r.aPedir===0) return false;
     if(q&&!r.p.n.toLowerCase().includes(q)&&!r.p.m.toLowerCase().includes(q)&&!r.p.c.toLowerCase().includes(q)) return false;
@@ -1218,6 +1261,11 @@ function renderPedidos(){
   }
 
   tbody.replaceChildren(frag);
+  // Update sort icons
+  ['stock','vendido','vdiaria','optimo','apedir','totalkg','prob'].forEach(col=>{
+    const el=document.getElementById('sort-icon-'+col);
+    if(el) el.innerHTML=sortIcon(col);
+  });
   document.getElementById('ped-fcount').textContent=visibles+' / '+PRODS.length+(hasPinned?` (${APP.pinned.size} sel.)`:'')+' — Totales sobre '+(hasPinned?'seleccionados':'todos');
 
   // Status bar
@@ -1297,7 +1345,8 @@ function selectAllFiltered(){
     const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
     const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
     const stockAct=getStockActual(p,cfg.suc);
-    const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const baseAPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const aPedir=Math.max(0,baseAPedir+(APP.adjustments[p.c]||0));
     if(solo&&aPedir===0) return;
     if(q&&!p.n.toLowerCase().includes(q)&&!p.m.toLowerCase().includes(q)&&!p.c.toLowerCase().includes(q)) return;
     if(!passesColFilters(p,st)) return;
@@ -1324,7 +1373,8 @@ async function exportarPedido(){
       const st=calcStats(p,cfg.suc,cfg.nper,cfg.alpha);
       const stockOpt=Math.ceil(st.vDiaria*cfg.diasR);
       const stockAct=getStockActual(p,cfg.suc);
-      const aPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+      const baseAPedir=stockAct!==null?Math.max(0,stockOpt-stockAct):stockOpt;
+    const aPedir=Math.max(0,baseAPedir+(APP.adjustments[p.c]||0));
       if(aPedir===0) return;
       const totalKg=p.k!=null?+(aPedir*p.k).toFixed(1):'';
       let prob='';
