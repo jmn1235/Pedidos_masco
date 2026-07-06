@@ -366,6 +366,23 @@ Venc.<span id="sort-icon-prob"></span></th>
   </div>
 </div>
 
+<!-- MODAL: Filas sin asignar -->
+<div class="modal-bg" id="modal-unmatched">
+  <div class="modal" style="max-width:720px;max-height:85vh;display:flex;flex-direction:column">
+    <h3 style="flex-shrink:0">⚠ Revisar ventas sin asignar (<span id="unmatched-count">0</span>)</h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;flex-shrink:0">
+      <button class="btn btn-sm" onclick="autoAssignAllUnmatched('best')" title="Asignar al producto más similar (>70% match)">🎯 Auto-asignar los mejores matches</button>
+      <button class="btn btn-sm" onclick="autoAssignAllUnmatched('create')" title="Crear todos como productos nuevos">➕ Crear todos como nuevos</button>
+      <button class="btn btn-sm" onclick="autoAssignAllUnmatched('skip')" title="Ignorar todos">✕ Ignorar todos</button>
+    </div>
+    <div id="unmatched-list" style="overflow-y:auto;flex:1;padding-right:4px"></div>
+    <div class="modal-btns" style="flex-shrink:0">
+      <button class="btn" onclick="if(confirm('¿Cerrar sin aplicar cambios?')){document.getElementById('modal-unmatched').classList.remove('show');UNMATCHED_STATE=null}">Cancelar</button>
+      <button class="btn btn-blue" onclick="applyUnmatchedDecisions()">Aplicar decisiones</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 // ── GLOBAL VARIABLES ──────────────────────────────────────────────────────────
@@ -375,6 +392,7 @@ let toastT        = null;
 let xlsxP         = null;
 let filterDropdown= null;
 let PRODS         = [];
+let UNMATCHED_STATE=null;
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -677,29 +695,220 @@ async function doImportMes(){
     const buf=await file.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array'});
     const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
-    let hdrIdx=-1,codeCol=-1,cantCol=-1;
+    let hdrIdx=-1,codeCol=-1,cantCol=-1,prodCol=-1,subrCol=-1;
     for(let i=0;i<Math.min(rows.length,10);i++){
       const row=rows[i];
       for(let j=0;j<row.length;j++){
         const v=String(row[j]||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
         if(/^cod/.test(v)&&codeCol<0){codeCol=j;hdrIdx=i}
         if((v.includes('cantidad')&&v.includes('vend'))||v===colHint) cantCol=j;
+        if(v==='producto'||v==='nombre'||v==='descripcion') prodCol=j;
+        if(v.includes('sub rubro')||v==='subrubro'||v==='rubro') subrCol=j;
       }
       if(codeCol>=0&&cantCol>=0) break;
     }
     if(codeCol<0){toast('No encontré columna de código','err');return}
     if(cantCol<0){toast('No encontré columna de cantidad','err');return}
+
+    // Parse all rows and categorize
     const data={};let count=0;
+    const unmatched=[];  // rows whose code doesn't exist in PRODS master
+    const prodsByCode={};
+    PRODS.forEach(p=>prodsByCode[p.c]=p);
+
     for(let i=hdrIdx+1;i<rows.length;i++){
-      const row=rows[i]; const code=normCode(row[codeCol]); const qty=parseFloat(row[cantCol])||0;
-      if(code&&qty>0){data[code]=Math.round(qty);count++}
+      const row=rows[i];
+      const rawCode=row[codeCol];
+      const code=normCode(rawCode);
+      const qty=parseFloat(row[cantCol])||0;
+      if(!code||qty<=0) continue;
+      const nombre=prodCol>=0?String(row[prodCol]||'').trim():'';
+      const subr  =subrCol>=0?String(row[subrCol]||'').trim():'';
+      if(prodsByCode[code]){
+        // Match found → assign to product
+        data[code]=Math.round(qty);
+        count++;
+      } else {
+        // No match → keep for review
+        unmatched.push({rawCode,code,nombre,qty:Math.round(qty),subr});
+      }
     }
+
+    // Apply matched data
     const existing=APP.hist[suc].findIndex(p=>p.label===label);
-    if(existing>=0){if(!confirm(`El período "${label}" ya existe. ¿Reemplazar?`))return; APP.hist[suc][existing].data=data;}
-    else APP.hist[suc].push({label,data});
-    scheduleSave(); document.getElementById('modal-import').classList.remove('show');
-    renderHistTab(suc); toast(`✓ Importado "${label}": ${count} productos`);
+    if(existing>=0){
+      if(!confirm(`El período "${label}" ya existe. ¿Reemplazar?`))return;
+      APP.hist[suc][existing].data=data;
+    } else {
+      APP.hist[suc].push({label,data});
+    }
+    scheduleSave();
+    document.getElementById('modal-import').classList.remove('show');
+    renderHistTab(suc);
+
+    if(unmatched.length===0){
+      toast('\u2713 Importado "'+label+'": '+count+' productos');
+    } else {
+      toast('\u2713 Importado "'+label+'": '+count+' asignados, '+unmatched.length+' sin asignar','ok');
+      // Show unmatched review modal
+      openUnmatchedReview(unmatched, suc, label);
+    }
   }catch(e){toast('Error: '+e.message,'err')}
+}
+
+/* ── UNMATCHED REVIEW ─────────────────────────────────────────────────── */
+// For each unmatched row, try to find similar products via name similarity
+function similarity(a,b){
+  if(!a||!b) return 0;
+  a=a.toUpperCase().replace(/[^A-Z0-9 ]/g,'').trim();
+  b=b.toUpperCase().replace(/[^A-Z0-9 ]/g,'').trim();
+  if(a===b) return 1;
+  const wa=new Set(a.split(/\s+/).filter(w=>w.length>=2));
+  const wb=new Set(b.split(/\s+/).filter(w=>w.length>=2));
+  if(!wa.size||!wb.size) return 0;
+  let inter=0;
+  wa.forEach(w=>{if(wb.has(w))inter++});
+  return inter/Math.max(wa.size,wb.size);
+}
+
+function findSimilarProducts(name, maxResults=5){
+  if(!name) return [];
+  const scored=PRODS.map(p=>({p,score:similarity(name,p.n)}))
+    .filter(x=>x.score>=0.4)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,maxResults);
+  return scored;
+}
+
+// UNMATCHED_STATE declared globally
+
+function openUnmatchedReview(items, suc, label){
+  UNMATCHED_STATE = {items, suc, label, decisions:{}};
+  renderUnmatchedModal();
+  document.getElementById('modal-unmatched').classList.add('show');
+}
+
+function renderUnmatchedModal(){
+  const st=UNMATCHED_STATE;
+  if(!st) return;
+  const items=st.items;
+  const container=document.getElementById('unmatched-list');
+  let h='';
+  h+=`<div style="font-size:12px;color:#94a3b8;margin-bottom:12px">
+    Estas ventas fueron importadas al período "<strong>${esc(st.label)}</strong>" pero sus códigos no existen en el maestro de Productos.
+    Para cada una, elegí una acción:
+  </div>`;
+  items.forEach((it,i)=>{
+    const decision=st.decisions[i]||{action:'skip'};
+    const similar=findSimilarProducts(it.nombre);
+    const bg=i%2===0?'#0f172a':'#0a1525';
+    h+=`<div style="background:${bg};border:1px solid #1e293b;border-radius:8px;padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-family:monospace;font-size:11px;color:#64748b">Código: <strong style="color:#e2e8f0">${esc(it.code)}</strong></div>
+          <div style="font-weight:600;font-size:13px;color:#f1f5f9;margin-top:2px">${esc(it.nombre||'(sin nombre)')}</div>
+          ${it.subr?`<div style="font-size:10px;color:#64748b;margin-top:2px">${esc(it.subr)}</div>`:''}
+        </div>
+        <div style="font-weight:700;color:#3b82f6;font-size:14px">${it.qty} un.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#e2e8f0">
+          <input type="radio" name="dec-${i}" value="skip" ${decision.action==='skip'?'checked':''} onchange="setUnmatchedDecision(${i},'skip',null)" style="accent-color:#64748b">
+          Ignorar (no importar esta venta)
+        </label>`;
+    if(similar.length>0){
+      h+=`<div style="margin-left:22px;color:#94a3b8;font-size:11px;margin-bottom:4px">Productos similares encontrados:</div>`;
+      similar.forEach(s=>{
+        const isChecked=decision.action==='assign'&&decision.code===s.p.c;
+        h+=`<label style="display:flex;align-items:center;gap:6px;margin-left:22px;font-size:12px;cursor:pointer;color:#e2e8f0">
+          <input type="radio" name="dec-${i}" value="assign-${s.p.c}" ${isChecked?'checked':''} onchange="setUnmatchedDecision(${i},'assign','${esc(s.p.c)}')" style="accent-color:#3b82f6">
+          <span style="font-family:monospace;font-size:11px;color:#64748b">${esc(s.p.c)}</span>
+          <span>${esc(s.p.n)}</span>
+          <span style="margin-left:auto;font-size:10px;color:#22c55e">${Math.round(s.score*100)}% match</span>
+        </label>`;
+      });
+    }
+    h+=`<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#e2e8f0">
+        <input type="radio" name="dec-${i}" value="create" ${decision.action==='create'?'checked':''} onchange="setUnmatchedDecision(${i},'create',null)" style="accent-color:#22c55e">
+        <strong>Crear producto nuevo</strong> con código <span style="font-family:monospace">${esc(it.code)}</span>
+      </label>
+      </div>
+    </div>`;
+  });
+  container.innerHTML=h;
+  document.getElementById('unmatched-count').textContent=items.length;
+}
+
+function setUnmatchedDecision(idx, action, code){
+  if(!UNMATCHED_STATE) return;
+  UNMATCHED_STATE.decisions[idx]={action, code};
+}
+
+function applyUnmatchedDecisions(){
+  const st=UNMATCHED_STATE;
+  if(!st) return;
+  const suc=st.suc, label=st.label;
+  const period=APP.hist[suc].find(p=>p.label===label);
+  if(!period){toast('Error: período no encontrado','err');return}
+
+  let assigned=0, created=0, skipped=0;
+  const prodsByCode={};
+  PRODS.forEach(p=>prodsByCode[p.c]=p);
+
+  st.items.forEach((it,i)=>{
+    const d=st.decisions[i]||{action:'skip'};
+    if(d.action==='assign'&&d.code){
+      // Assign this quantity to existing product code
+      period.data[d.code]=(period.data[d.code]||0)+it.qty;
+      assigned++;
+    } else if(d.action==='create'){
+      // Create new product in master
+      if(!prodsByCode[it.code]){
+        const newProd={
+          c: it.code,
+          n: it.nombre||('Producto '+it.code),
+          m: 'SIN MARCA',
+          r: it.subr||'',
+          k: null
+        };
+        PRODS.push(newProd);
+        prodsByCode[it.code]=newProd;
+        created++;
+      }
+      // Assign the sale to the new product
+      period.data[it.code]=(period.data[it.code]||0)+it.qty;
+    } else {
+      skipped++;
+    }
+  });
+
+  scheduleSave();
+  document.getElementById('modal-unmatched').classList.remove('show');
+  renderHistTab(suc);
+  UNMATCHED_STATE=null;
+  const msgs=[];
+  if(assigned>0) msgs.push(assigned+' asignados');
+  if(created>0) msgs.push(created+' creados');
+  if(skipped>0) msgs.push(skipped+' ignorados');
+  toast('\u2713 '+msgs.join(', '));
+}
+
+function autoAssignAllUnmatched(actionType){
+  // Bulk action: apply the same choice to all items
+  if(!UNMATCHED_STATE) return;
+  UNMATCHED_STATE.items.forEach((it,i)=>{
+    if(actionType==='skip')       UNMATCHED_STATE.decisions[i]={action:'skip'};
+    else if(actionType==='create')UNMATCHED_STATE.decisions[i]={action:'create'};
+    else if(actionType==='best'){
+      const sim=findSimilarProducts(it.nombre,1);
+      if(sim.length>0&&sim[0].score>=0.7){
+        UNMATCHED_STATE.decisions[i]={action:'assign',code:sim[0].p.c};
+      } else {
+        UNMATCHED_STATE.decisions[i]={action:'skip'};
+      }
+    }
+  });
+  renderUnmatchedModal();
 }
 
 /* ── EXPORT HISTORIAL ──────────────────────────────────────────────────── */
